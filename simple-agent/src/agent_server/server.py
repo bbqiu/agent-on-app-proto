@@ -9,6 +9,7 @@ import mlflow
 import mlflow.tracing
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from mlflow.pyfunc import ResponsesAgent
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -56,15 +57,20 @@ class AgentServer:
         self.logger = logging.getLogger(__name__)
         self._setup_routes()
 
-    def _trace_request(self, endpoint: str, data: dict, result: Any, duration: float):
+    def _trace_request(
+        self,
+        method_name: str,
+        data: dict,
+        result: Any,
+        duration: float,
+    ):
         """Log request/response to MLflow"""
         try:
-            with mlflow.start_span(name=f"{self.agent_type}_{endpoint}") as span:
+            with mlflow.start_span(name=method_name) as span:
                 span.set_inputs(data)
-                span.set_outputs({"result": result})
                 span.set_attribute("agent_type", self.agent_type)
-                span.set_attribute("endpoint", endpoint)
                 span.set_attribute("duration_ms", duration * 1000)
+                span.end(result)
         except Exception as e:
             print(f"Error logging to MLflow: {e}")
 
@@ -91,8 +97,13 @@ class AgentServer:
         @self.app.post("/invocations")
         async def invocations_endpoint(request: Request):
             start_time = time.time()
-            # TODO: return a 400 if the request is not a valid JSON
-            data = await request.json()
+
+            try:
+                data = await request.json()
+            except Exception as e:
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid JSON in request body: {str(e)}"
+                )
 
             # Log incoming request
             self.logger.info(
@@ -133,32 +144,28 @@ class AgentServer:
 
         # Check if function is async or sync and execute with tracing
         try:
-            with mlflow.start_span(name=f"{func_name}_predict") as span:
-                span.set_inputs(data)
-                if inspect.iscoroutinefunction(func):
-                    result = await func(data)
-                else:
-                    result = func(data)
-                span.set_outputs({"result": result})
+            if inspect.iscoroutinefunction(func):
+                result = await func(data)
+            else:
+                result = func(data)
 
             # Log the full request/response
             duration = time.time() - start_time
             self._trace_request("predict", data, result, duration)
 
             # Log response details
-            response = {"result": result}
             self.logger.info(
                 "Response sent",
                 extra={
                     "endpoint": "predict",
                     "agent_type": self.agent_type,
                     "duration_ms": duration * 1000,
-                    "response_size": len(json.dumps(response)),
+                    "response_size": len(json.dumps(result)),
                     "function_name": func_name,
                 },
             )
 
-            return response
+            return result
 
         except Exception as e:
             duration = time.time() - start_time
@@ -195,27 +202,27 @@ class AgentServer:
         async def generate():
             nonlocal all_chunks
             try:
-                with mlflow.start_span(name=f"{func_name}_predict_stream") as span:
-                    span.set_inputs(data)
-
-                    # Check if function is async or sync
-                    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
-                        async for chunk in func(data):
-                            all_chunks.append(chunk)
-                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                    else:
-                        for chunk in func(data):
-                            all_chunks.append(chunk)
-                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-
-                    span.set_outputs({"chunks": all_chunks, "total_chunks": len(all_chunks)})
+                # Check if function is async or sync
+                if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+                    async for chunk in func(data):
+                        all_chunks.append(chunk)
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                else:
+                    for chunk in func(data):
+                        all_chunks.append(chunk)
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
                 # Send [DONE] signal
                 yield "data: [DONE]\n\n"
 
                 # Log the full streaming session
                 duration = time.time() - start_time
-                self._trace_request("predict_stream", data, {"chunks": all_chunks}, duration)
+                self._trace_request(
+                    "predict_stream",
+                    data,
+                    ResponsesAgent.responses_agent_output_reducer(all_chunks),
+                    duration,
+                )
 
                 # Log streaming response completion
                 self.logger.info(
