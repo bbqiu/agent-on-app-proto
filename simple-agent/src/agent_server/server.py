@@ -91,6 +91,7 @@ class AgentServer:
         @self.app.post("/invocations")
         async def invocations_endpoint(request: Request):
             start_time = time.time()
+            # TODO: return a 400 if the request is not a valid JSON
             data = await request.json()
 
             # Log incoming request
@@ -177,7 +178,9 @@ class AgentServer:
 
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def _handle_streaming_request(self, data: dict, start_time: float, request: Request = None):
+    async def _handle_streaming_request(
+        self, data: dict, start_time: float, request: Request = None
+    ):
         """Handle streaming predict requests"""
         # Use the single predict_stream function
         if _predict_stream_function is None:
@@ -186,42 +189,29 @@ class AgentServer:
         func = _predict_stream_function
         func_name = func.__name__
 
-        # Handle Last-Event-ID header for reconnection
-        last_event_id = request.headers.get("last-event-id") if request else None
-        start_event_id = int(last_event_id) + 1 if last_event_id and last_event_id.isdigit() else 0
-        
         # Collect all chunks for tracing
         all_chunks = []
 
         async def generate():
             nonlocal all_chunks
-            event_id = start_event_id
             try:
                 with mlflow.start_span(name=f"{func_name}_predict_stream") as span:
                     span.set_inputs(data)
 
                     # Check if function is async or sync
                     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
-                        async for chunk_idx, chunk in enumerate(func(data)):
-                            # Skip events that were already sent (for reconnection)
-                            if chunk_idx < start_event_id:
-                                continue
+                        async for chunk in func(data):
                             all_chunks.append(chunk)
-                            yield f"id: {event_id}\ndata: {json.dumps({'chunk': chunk})}\n\n"
-                            event_id += 1
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                     else:
-                        for chunk_idx, chunk in enumerate(func(data)):
-                            # Skip events that were already sent (for reconnection)
-                            if chunk_idx < start_event_id:
-                                continue
+                        for chunk in func(data):
                             all_chunks.append(chunk)
-                            yield f"id: {event_id}\ndata: {json.dumps({'chunk': chunk})}\n\n"
-                            event_id += 1
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
                     span.set_outputs({"chunks": all_chunks, "total_chunks": len(all_chunks)})
 
-                # Send [DONE] signal with event ID
-                yield f"id: {event_id}\ndata: [DONE]\n\n"
+                # Send [DONE] signal
+                yield "data: [DONE]\n\n"
 
                 # Log the full streaming session
                 duration = time.time() - start_time
