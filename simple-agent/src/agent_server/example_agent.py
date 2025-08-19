@@ -9,7 +9,7 @@ from mlflow.types.responses import (
     ResponsesAgentStreamEvent,
 )
 
-from agent_server.server import create_server, predict, predict_stream
+from agent_server.server import create_server, invoke, stream
 
 mlflow.set_tracking_uri("databricks")
 mlflow.set_experiment("/Users/bryan.qiu@databricks.com/bbqiu-agent-proto1")
@@ -31,11 +31,10 @@ print(f"Active LoggedModel: '{active_model_info.name}', Model ID: '{active_model
 
 
 # Example for ResponsesAgent
-@predict()
+@invoke()
 async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
     """Responses agent predict function - expects inputs format."""
     return {
-        "id": "id",
         "output": [
             {
                 "type": "message",
@@ -47,7 +46,7 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
     }
 
 
-@predict_stream()
+@stream()
 async def stream(request: ResponsesAgentRequest) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
     yield {
         "type": "response.output_item.done",

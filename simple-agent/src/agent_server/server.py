@@ -16,32 +16,31 @@ from mlflow.types.responses import (
     ResponsesAgentStreamEvent,
 )
 
-# Single function storage - only one of each decorator allowed
-_predict_function: Optional[Callable] = None
-_predict_stream_function: Optional[Callable] = None
+_invoke_function: Optional[Callable] = None
+_stream_function: Optional[Callable] = None
 
 
-def predict(name: Optional[str] = None):
-    """Decorator to register a function as a predict endpoint. Can only be used once."""
+def invoke(name: Optional[str] = None):
+    """Decorator to register a function as an invoke endpoint. Can only be used once."""
 
     def decorator(func: Callable):
-        global _predict_function
-        if _predict_function is not None:
-            raise ValueError("predict decorator can only be used once")
-        _predict_function = func
+        global _invoke_function
+        if _invoke_function is not None:
+            raise ValueError("invoke decorator can only be used once")
+        _invoke_function = func
         return func
 
     return decorator
 
 
-def predict_stream(name: Optional[str] = None):
-    """Decorator to register a function as a predict_stream endpoint. Can only be used once."""
+def stream(name: Optional[str] = None):
+    """Decorator to register a function as a stream endpoint. Can only be used once."""
 
     def decorator(func: Callable):
-        global _predict_stream_function
-        if _predict_stream_function is not None:
-            raise ValueError("predict_stream decorator can only be used once")
-        _predict_stream_function = func
+        global _stream_function
+        if _stream_function is not None:
+            raise ValueError("stream decorator can only be used once")
+        _stream_function = func
         return func
 
     return decorator
@@ -56,23 +55,6 @@ class AgentServer:
         self.app = FastAPI(title="Agent Server", version="0.0.1")
         self.logger = logging.getLogger(__name__)
         self._setup_routes()
-
-    def _trace_request(
-        self,
-        method_name: str,
-        data: dict,
-        result: Any,
-        duration: float,
-    ):
-        """Log request/response to MLflow"""
-        try:
-            with mlflow.start_span(name=method_name) as span:
-                span.set_inputs(data)
-                span.set_attribute("agent_type", self.agent_type)
-                span.set_attribute("duration_ms", duration * 1000)
-                span.end(result)
-        except Exception as e:
-            print(f"Error logging to MLflow: {e}")
 
     def _validate_responses_agent_params(self, data: dict) -> bool:
         """Validate parameters for agent/v1/responses (ResponsesAgent)"""
@@ -129,37 +111,38 @@ class AgentServer:
                 )
 
             if is_streaming:
-                return await self._handle_streaming_request(request_data, start_time, request)
+                return await self._handle_stream_request(request_data, start_time)
             else:
-                return await self._handle_predict_request(request_data, start_time)
+                return await self._handle_invoke_request(request_data, start_time)
 
-    async def _handle_predict_request(self, data: dict, start_time: float):
-        """Handle non-streaming predict requests"""
-        # Use the single predict function
-        if _predict_function is None:
-            raise HTTPException(status_code=500, detail="No predict function registered")
+    async def _handle_invoke_request(self, data: dict, start_time: float):
+        """Handle non-streaming invoke requests"""
+        # Use the single invoke function
+        if _invoke_function is None:
+            raise HTTPException(status_code=500, detail="No invoke function registered")
 
-        func = _predict_function
+        func = _invoke_function
         func_name = func.__name__
 
         # Check if function is async or sync and execute with tracing
         try:
-            if inspect.iscoroutinefunction(func):
-                result = await func(data)
-            else:
-                result = func(data)
+            with mlflow.start_span(name=f"{func_name}_invoke") as span:
+                span.set_inputs(data)
+                if inspect.iscoroutinefunction(func):
+                    result = await func(data)
+                else:
+                    result = func(data)
 
-            # Log the full request/response
-            duration = time.time() - start_time
-            self._trace_request("predict", data, result, duration)
+                duration = round(time.time() - start_time, 2)
+                span.set_attribute("duration_ms", duration)
+                span.end(result)
 
             # Log response details
             self.logger.info(
                 "Response sent",
                 extra={
-                    "endpoint": "predict",
-                    "agent_type": self.agent_type,
-                    "duration_ms": duration * 1000,
+                    "endpoint": "invoke",
+                    "duration_ms": duration,
                     "response_size": len(json.dumps(result)),
                     "function_name": func_name,
                 },
@@ -168,16 +151,15 @@ class AgentServer:
             return result
 
         except Exception as e:
-            duration = time.time() - start_time
-            self._trace_request("predict", data, f"Error: {str(e)}", duration)
+            duration = round(time.time() - start_time, 2)
+            span.set_attribute("duration_ms", duration)
+            span.end(f"Error: {str(e)}")
 
-            # Log error response
             self.logger.error(
                 "Error response sent",
                 extra={
-                    "endpoint": "predict",
-                    "agent_type": self.agent_type,
-                    "duration_ms": duration * 1000,
+                    "endpoint": "invoke",
+                    "duration_ms": duration,
                     "error": str(e),
                     "function_name": func_name,
                 },
@@ -185,15 +167,13 @@ class AgentServer:
 
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def _handle_streaming_request(
-        self, data: dict, start_time: float, request: Request = None
-    ):
-        """Handle streaming predict requests"""
-        # Use the single predict_stream function
-        if _predict_stream_function is None:
-            raise HTTPException(status_code=500, detail="No predict_stream function registered")
+    async def _handle_stream_request(self, data: dict, start_time: float):
+        """Handle streaming requests"""
+        # Use the single stream function
+        if _stream_function is None:
+            raise HTTPException(status_code=500, detail="No stream function registered")
 
-        func = _predict_stream_function
+        func = _stream_function
         func_name = func.__name__
 
         # Collect all chunks for tracing
@@ -202,51 +182,47 @@ class AgentServer:
         async def generate():
             nonlocal all_chunks
             try:
-                # Check if function is async or sync
-                if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
-                    async for chunk in func(data):
-                        all_chunks.append(chunk)
-                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                else:
-                    for chunk in func(data):
-                        all_chunks.append(chunk)
-                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                with mlflow.start_span(name=f"{func_name}_stream") as span:
+                    span.set_inputs(data)
+                    # Check if function is async or sync
+                    if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+                        async for chunk in func(data):
+                            all_chunks.append(chunk)
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                    else:
+                        for chunk in func(data):
+                            all_chunks.append(chunk)
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
-                # Send [DONE] signal
-                yield "data: [DONE]\n\n"
+                    # Send [DONE] signal
+                    yield "data: [DONE]\n\n"
 
-                # Log the full streaming session
-                duration = time.time() - start_time
-                self._trace_request(
-                    "predict_stream",
-                    data,
-                    ResponsesAgent.responses_agent_output_reducer(all_chunks),
-                    duration,
-                )
+                    # Log the full streaming session
+                    duration = round(time.time() - start_time, 2)
+                    span.set_attribute("duration_ms", duration)
+                    span.end(ResponsesAgent.responses_agent_output_reducer(all_chunks))
 
                 # Log streaming response completion
                 self.logger.info(
                     "Streaming response completed",
                     extra={
-                        "endpoint": "predict_stream",
-                        "agent_type": self.agent_type,
-                        "duration_ms": duration * 1000,
+                        "endpoint": "stream",
+                        "duration_ms": duration,
                         "total_chunks": len(all_chunks),
                         "function_name": func_name,
                     },
                 )
 
             except Exception as e:
-                duration = time.time() - start_time
-                self._trace_request("predict_stream", data, f"Error: {str(e)}", duration)
+                duration = round(time.time() - start_time, 2)
+                span.set_attribute("duration_ms", duration)
+                span.end(f"Error: {str(e)}")
 
-                # Log streaming error
                 self.logger.error(
                     "Streaming response error",
                     extra={
-                        "endpoint": "predict_stream",
-                        "agent_type": self.agent_type,
-                        "duration_ms": duration * 1000,
+                        "endpoint": "stream",
+                        "duration_ms": duration,
                         "error": str(e),
                         "function_name": func_name,
                         "chunks_sent": len(all_chunks),
