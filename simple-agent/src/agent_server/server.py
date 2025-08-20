@@ -11,6 +11,7 @@ import mlflow.tracing
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from mlflow.pyfunc import ResponsesAgent
+from mlflow.tracing.trace_manager import InMemoryTraceManager
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -22,7 +23,7 @@ _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
 
 
-def invoke(name: Optional[str] = None):
+def invoke():
     """Decorator to register a function as an invoke endpoint. Can only be used once."""
 
     def decorator(func: Callable):
@@ -35,7 +36,7 @@ def invoke(name: Optional[str] = None):
     return decorator
 
 
-def stream(name: Optional[str] = None):
+def stream():
     """Decorator to register a function as a stream endpoint. Can only be used once."""
 
     def decorator(func: Callable):
@@ -58,7 +59,7 @@ class AgentServer:
         self.logger = logging.getLogger(__name__)
         self._setup_routes()
 
-    def _validate_responses_agent_params(self, data: dict) -> bool:
+    def _validate_responses_agent_request(self, data: dict) -> bool:
         """Validate parameters for agent/v1/responses (ResponsesAgent)"""
         try:
             ResponsesAgentRequest(**data)
@@ -67,14 +68,14 @@ class AgentServer:
             self.logger.warning(f"Invalid parameters for {self.agent_type}: {e}")
             return False
 
-    def _validate_request_params(self, data: dict) -> bool:
+    def _validate_request(self, data: dict) -> bool:
         """Validate request parameters based on agent type"""
         if self.agent_type == "agent/v1/chat":
             return self._validate_chat_model_params(data)
         elif self.agent_type == "agent/v2/chat":
             return self._validate_chat_agent_params(data)
         elif self.agent_type == "agent/v1/responses":
-            return self._validate_responses_agent_params(data)
+            return self._validate_responses_agent_request(data)
         return False
 
     def _validate_and_convert_result(self, result: Any) -> dict:
@@ -88,6 +89,12 @@ class AgentServer:
             return result
         else:
             raise ValueError(f"Unsupported result type: {type(result)}, result: {result}")
+
+    def _get_databricks_output(self, trace_id: str) -> dict:
+        with InMemoryTraceManager.get_instance().get_trace(trace_id) as trace:
+            return {
+                "trace": trace.to_mlflow_trace().to_dict(),
+            }
 
     def _setup_routes(self):
         @self.app.post("/invocations")
@@ -113,23 +120,24 @@ class AgentServer:
 
             # Check if streaming is requested
             is_streaming = data.get("stream", False)
+            return_trace = data.get("databricks_options", {}).get("return_trace", False)
 
             # Remove stream parameter from data before validation
             request_data = {k: v for k, v in data.items() if k != "stream"}
 
             # Validate request parameters based on agent type
-            if not self._validate_request_params(request_data):
+            if not self._validate_request(request_data):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid parameters for {self.agent_type}. Expected format based on MLflow agent type.",
                 )
 
             if is_streaming:
-                return await self._handle_stream_request(request_data, start_time)
+                return await self._handle_stream_request(request_data, start_time, return_trace)
             else:
-                return await self._handle_invoke_request(request_data, start_time)
+                return await self._handle_invoke_request(request_data, start_time, return_trace)
 
-    async def _handle_invoke_request(self, data: dict, start_time: float):
+    async def _handle_invoke_request(self, data: dict, start_time: float, return_trace: bool):
         """Handle non-streaming invoke requests"""
         # Use the single invoke function
         if _invoke_function is None:
@@ -148,6 +156,10 @@ class AgentServer:
                     result = func(data)
 
                 result = self._validate_and_convert_result(result)
+
+                if return_trace:
+                    result["databricks_output"] = self._get_databricks_output(span.trace_id)
+
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
                 span.end(result)
@@ -160,6 +172,7 @@ class AgentServer:
                     "duration_ms": duration,
                     "response_size": len(json.dumps(result)),
                     "function_name": func_name,
+                    "return_trace": return_trace,
                 },
             )
 
@@ -177,12 +190,13 @@ class AgentServer:
                     "duration_ms": duration,
                     "error": str(e),
                     "function_name": func_name,
+                    "return_trace": return_trace,
                 },
             )
 
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def _handle_stream_request(self, data: dict, start_time: float):
+    async def _handle_stream_request(self, data: dict, start_time: float, return_trace: bool):
         """Handle streaming requests"""
         # Use the single stream function
         if _stream_function is None:
@@ -209,6 +223,9 @@ class AgentServer:
                             chunk = self._validate_and_convert_result(chunk)
                             all_chunks.append(chunk)
                             yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                    if return_trace:
+                        databricks_output = self._get_databricks_output(span.trace_id)
+                        yield f"data: {json.dumps({'databricks_output': databricks_output})}\n\n"
 
                     # Send [DONE] signal
                     yield "data: [DONE]\n\n"
@@ -226,6 +243,7 @@ class AgentServer:
                         "duration_ms": duration,
                         "total_chunks": len(all_chunks),
                         "function_name": func_name,
+                        "return_trace": return_trace,
                     },
                 )
 
@@ -242,6 +260,7 @@ class AgentServer:
                         "error": str(e),
                         "function_name": func_name,
                         "chunks_sent": len(all_chunks),
+                        "return_trace": return_trace,
                     },
                 )
 

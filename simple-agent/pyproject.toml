@@ -27,4 +27,4 @@ dev = [
 ]
 
 [project.scripts]
-agent-server = "agent_server.example_agent:main"
+agent-server = "agent_server.agent:main"
