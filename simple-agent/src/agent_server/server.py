@@ -3,6 +3,7 @@ import inspect
 import json
 import logging
 import time
+from dataclasses import asdict, is_dataclass
 from typing import Any, Callable, Literal, Optional
 
 import mlflow
@@ -15,6 +16,7 @@ from mlflow.types.responses import (
     ResponsesAgentResponse,
     ResponsesAgentStreamEvent,
 )
+from pydantic import BaseModel
 
 _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
@@ -75,6 +77,18 @@ class AgentServer:
             return self._validate_responses_agent_params(data)
         return False
 
+    def _validate_and_convert_result(self, result: Any) -> dict:
+        """Validate and convert the result into a dictionary if necessary"""
+
+        if isinstance(result, BaseModel):
+            return result.model_dump(exclude_none=True)
+        elif is_dataclass(result):
+            return asdict(result)
+        elif isinstance(result, dict):
+            return result
+        else:
+            raise ValueError(f"Unsupported result type: {type(result)}, result: {result}")
+
     def _setup_routes(self):
         @self.app.post("/invocations")
         async def invocations_endpoint(request: Request):
@@ -133,6 +147,7 @@ class AgentServer:
                 else:
                     result = func(data)
 
+                result = self._validate_and_convert_result(result)
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
                 span.end(result)
@@ -184,13 +199,14 @@ class AgentServer:
             try:
                 with mlflow.start_span(name=f"{func_name}_stream") as span:
                     span.set_inputs(data)
-                    # Check if function is async or sync
                     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
                         async for chunk in func(data):
+                            chunk = self._validate_and_convert_result(chunk)
                             all_chunks.append(chunk)
                             yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                     else:
                         for chunk in func(data):
+                            chunk = self._validate_and_convert_result(chunk)
                             all_chunks.append(chunk)
                             yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
