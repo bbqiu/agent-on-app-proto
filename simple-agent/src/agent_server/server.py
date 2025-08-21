@@ -1,10 +1,9 @@
-import asyncio
 import inspect
 import json
 import logging
 import time
 from dataclasses import asdict, is_dataclass
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Optional, Type
 
 import mlflow
 import mlflow.tracing
@@ -55,53 +54,13 @@ AgentType = Literal["agent/v1/responses"]
 class AgentServer:
     def __init__(self, agent_type: AgentType):
         self.agent_type = agent_type
+        self.validator = AgentValidator(agent_type)
         self.app = FastAPI(title="Agent Server", version="0.0.1")
         self.logger = logging.getLogger(__name__)
         self._setup_routes()
 
-    def _validate_responses_agent_request(self, data: dict) -> bool:
-        """Validate parameters for agent/v1/responses (ResponsesAgent)"""
-        try:
-            ResponsesAgentRequest(**data)
-            return True
-        except Exception as e:
-            self.logger.warning(f"Invalid parameters for {self.agent_type}: {e}")
-            return False
-
-    def _validate_responses_agent_response(self, result: Any) -> dict:
-        """Validate an invoke response for agent/v1/responses (ResponsesAgent)"""
-        try:
-            ResponsesAgentResponse(**result)
-            return True
-        except Exception as e:
-            self.logger.warning(f"Invalid invoke response for {self.agent_type}: {e}")
-            return False
-
-    def _validate_request(self, data: dict) -> bool:
-        """Validate request parameters based on agent type"""
-        if self.agent_type == "agent/v1/responses":
-            return self._validate_responses_agent_request(data)
-        return True
-
-    def _validate_invoke_response(self, result: Any) -> dict:
-        """Validate the invoke response"""
-        if self.agent_type == "agent/v1/responses":
-            return self._validate_responses_agent_response(result)
-        return result
-
-    def _validate_and_convert_result(self, result: Any) -> dict:
-        """Validate and convert the result into a dictionary if necessary"""
-
-        if isinstance(result, BaseModel):
-            return result.model_dump(exclude_none=True)
-        elif is_dataclass(result):
-            return asdict(result)
-        elif isinstance(result, dict):
-            return result
-        else:
-            raise ValueError(f"Unsupported result type: {type(result)}, result: {result}")
-
-    def _get_databricks_output(self, trace_id: str) -> dict:
+    @staticmethod
+    def _get_databricks_output(trace_id: str) -> dict:
         with InMemoryTraceManager.get_instance().get_trace(trace_id) as trace:
             return {"trace": trace.to_mlflow_trace().to_dict()}
 
@@ -135,10 +94,12 @@ class AgentServer:
             request_data = {k: v for k, v in data.items() if k != "stream"}
 
             # Validate request parameters based on agent type
-            if not self._validate_request(request_data):
+            try:
+                self.validator.validate_request(request_data)
+            except ValueError as e:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid parameters for {self.agent_type}. Expected format based on MLflow agent type.",
+                    detail=f"Invalid parameters for {self.agent_type}: {e}",
                 )
 
             if is_streaming:
@@ -164,14 +125,14 @@ class AgentServer:
                 else:
                     result = func(data)
 
-                result = self._validate_and_convert_result(result)
+                result = self.validator.validate_and_convert_result(result)
 
                 if return_trace:
                     result["databricks_output"] = self._get_databricks_output(span.trace_id)
 
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
-                span.end(result)
+                span.set_outputs(result)
 
             # Log response details
             self.logger.info(
@@ -190,7 +151,7 @@ class AgentServer:
         except Exception as e:
             duration = round(time.time() - start_time, 2)
             span.set_attribute("duration_ms", duration)
-            span.end(f"Error: {str(e)}")
+            span.set_outputs(f"Error: {str(e)}")
 
             self.logger.error(
                 "Error response sent",
@@ -224,12 +185,12 @@ class AgentServer:
                     span.set_inputs(data)
                     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
                         async for chunk in func(data):
-                            chunk = self._validate_and_convert_result(chunk)
+                            chunk = self.validator.validate_and_convert_result(chunk, stream=True)
                             all_chunks.append(chunk)
                             yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                     else:
                         for chunk in func(data):
-                            chunk = self._validate_and_convert_result(chunk)
+                            chunk = self.validator.validate_and_convert_result(chunk, stream=True)
                             all_chunks.append(chunk)
                             yield f"data: {json.dumps({'chunk': chunk})}\n\n"
                     if return_trace:
@@ -242,7 +203,7 @@ class AgentServer:
                     # Log the full streaming session
                     duration = round(time.time() - start_time, 2)
                     span.set_attribute("duration_ms", duration)
-                    span.end(ResponsesAgent.responses_agent_output_reducer(all_chunks))
+                    span.set_outputs(ResponsesAgent.responses_agent_output_reducer(all_chunks))
 
                 # Log streaming response completion
                 self.logger.info(
@@ -259,7 +220,7 @@ class AgentServer:
             except Exception as e:
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
-                span.end(f"Error: {str(e)}")
+                span.set_outputs(f"Error: {str(e)}")
 
                 self.logger.error(
                     "Streaming response error",
@@ -281,6 +242,57 @@ class AgentServer:
         import uvicorn
 
         uvicorn.run(self.app, host=host, port=port)
+
+
+class AgentValidator:
+    def __init__(self, agent_type: AgentType):
+        self.agent_type = agent_type
+        self.logger = logging.getLogger(__name__)
+
+    def validate_pydantic(self, pydantic_class: Type[BaseModel], data: Any) -> None:
+        """Generic pydantic validator that throws an error if the data is invalid"""
+        if isinstance(data, pydantic_class):
+            return
+        try:
+            pydantic_class(**data)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid data for {pydantic_class.__name__} (agent_type: {self.agent_type}): {e}"
+            )
+
+    def validate_invoke_response(self, result: Any) -> None:
+        """Validate the invoke response"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentResponse, result)
+        # TODO: add additional validation for different agent types
+
+    def validate_stream_response(self, result: Any) -> None:
+        """Validate a stream event for agent/v1/responses (ResponsesAgent)"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentStreamEvent, result)
+        # TODO: add additional validation for different agent types
+
+    def validate_request(self, data: dict) -> None:
+        """Validate request parameters based on agent type"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentRequest, data)
+        # TODO: add additional validation for different agent types
+
+    def validate_and_convert_result(self, result: Any, stream: bool = False) -> dict:
+        """Validate and convert the result into a dictionary if necessary"""
+        if stream:
+            self.validate_stream_response(result)
+        else:
+            self.validate_invoke_response(result)
+
+        if isinstance(result, BaseModel):
+            return result.model_dump(exclude_none=True)
+        elif is_dataclass(result):
+            return asdict(result)
+        elif isinstance(result, dict):
+            return result
+        else:
+            raise ValueError(f"Unsupported result type: {type(result)}, result: {result}")
 
 
 # Factory function to create server with specific agent type

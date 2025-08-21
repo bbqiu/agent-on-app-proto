@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import mlflow
@@ -5,11 +6,16 @@ import mlflow
 
 def setup_mlflow():
     """Initialize MLflow tracking and set active model."""
-    mlflow.set_tracking_uri("databricks")
-    mlflow.set_experiment("/Users/bryan.qiu@databricks.com/bbqiu-agent-proto1")
+    experiment_name = "/Users/bryan.qiu@databricks.com/bbqiu-agent-proto1"
+    assert experiment_name is not None, "You must set an experiment name "
 
-    # Define your application and its version identifier
-    app_name = "bbqiu-agent-proto1"
+    mlflow.set_tracking_uri("databricks")
+    mlflow.set_experiment(experiment_name)
+
+    # in a Databricks App, the app name is set in the environment variable DATABRICKS_APP_NAME
+    # in local development, we use a fallback app name
+    # TODO: add a fallback app name
+    app_name = os.getenv("DATABRICKS_APP_NAME", "FALLBACK-LOCAL-APP-NAME")
 
     # Get current git commit hash for versioning
     try:
@@ -18,7 +24,7 @@ def setup_mlflow():
         )
         version_identifier = f"git-{git_commit}"
     except subprocess.CalledProcessError:
-        version_identifier = "local-dev"  # Fallback if not in a git repo
+        version_identifier = "no-git-repo"  # Fallback if not in a git repo
     logged_model_name = f"{app_name}-{version_identifier}"
 
     # Set the active model context

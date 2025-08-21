@@ -304,7 +304,9 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
 
 
 @stream()
-async def stream(request: ResponsesAgentRequest) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
+async def stream(
+    request: ResponsesAgentRequest,
+) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
     yield {
         "type": "response.output_item.done",
         "item": {
