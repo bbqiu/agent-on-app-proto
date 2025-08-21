@@ -68,15 +68,26 @@ class AgentServer:
             self.logger.warning(f"Invalid parameters for {self.agent_type}: {e}")
             return False
 
+    def _validate_responses_agent_response(self, result: Any) -> dict:
+        """Validate an invoke response for agent/v1/responses (ResponsesAgent)"""
+        try:
+            ResponsesAgentResponse(**result)
+            return True
+        except Exception as e:
+            self.logger.warning(f"Invalid invoke response for {self.agent_type}: {e}")
+            return False
+
     def _validate_request(self, data: dict) -> bool:
         """Validate request parameters based on agent type"""
-        if self.agent_type == "agent/v1/chat":
-            return self._validate_chat_model_params(data)
-        elif self.agent_type == "agent/v2/chat":
-            return self._validate_chat_agent_params(data)
-        elif self.agent_type == "agent/v1/responses":
+        if self.agent_type == "agent/v1/responses":
             return self._validate_responses_agent_request(data)
-        return False
+        return True
+
+    def _validate_invoke_response(self, result: Any) -> dict:
+        """Validate the invoke response"""
+        if self.agent_type == "agent/v1/responses":
+            return self._validate_responses_agent_response(result)
+        return result
 
     def _validate_and_convert_result(self, result: Any) -> dict:
         """Validate and convert the result into a dictionary if necessary"""
@@ -92,9 +103,7 @@ class AgentServer:
 
     def _get_databricks_output(self, trace_id: str) -> dict:
         with InMemoryTraceManager.get_instance().get_trace(trace_id) as trace:
-            return {
-                "trace": trace.to_mlflow_trace().to_dict(),
-            }
+            return {"trace": trace.to_mlflow_trace().to_dict()}
 
     def _setup_routes(self):
         @self.app.post("/invocations")
