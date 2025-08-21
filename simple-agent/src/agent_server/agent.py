@@ -276,15 +276,15 @@ from agent_server.server import create_server, invoke, stream
 
 
 # @invoke()
-# def predict(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
-#     return AGENT.predict(request)
+# def predict(request: dict) -> ResponsesAgentResponse:
+#     return AGENT.predict(ResponsesAgentRequest(**request))
 
 
 # @stream()
 # def predict_stream(
-#     request: ResponsesAgentRequest,
+#     request: dict,
 # ) -> Generator[ResponsesAgentStreamEvent, None, None]:
-#     yield from AGENT.predict_stream(request)
+#     yield from AGENT.predict_stream(ResponsesAgentRequest(**request))
 
 
 # Example for ResponsesAgent
