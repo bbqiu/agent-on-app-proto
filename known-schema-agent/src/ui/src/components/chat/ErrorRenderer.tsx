@@ -1,5 +1,5 @@
-import type { ResponseErrorItem } from '../../schemas/validation';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import type { ResponseErrorItem } from "../../schemas/validation";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 interface ErrorRendererProps {
   error: ResponseErrorItem;
@@ -16,19 +16,8 @@ const ErrorRenderer = ({ error, onRetry }: ErrorRendererProps) => {
           {error.code}
         </span>
       </div>
-      
-      <div className="text-sm text-red-700 mb-2">
-        {error.message}
-      </div>
 
-      {error.details && (
-        <details className="text-xs text-red-600">
-          <summary className="cursor-pointer font-medium mb-1">Details</summary>
-          <pre className="whitespace-pre-wrap bg-red-100 p-2 rounded border">
-            {JSON.stringify(error.details, null, 2)}
-          </pre>
-        </details>
-      )}
+      <div className="text-sm text-red-700 mb-2">{error.message}</div>
 
       {onRetry && (
         <button

@@ -3,9 +3,9 @@ import { useMutation } from "@tanstack/react-query";
 import { AgentApiClient } from "../api/client";
 import type {
   ResponsesAgentRequest,
-  ResponseOutputItem,
   ResponseInputItem,
   ResponseInputMessage,
+  ResponseErrorItem,
 } from "../schemas/validation";
 
 export const useAgentApi = (endpoint: string) => {
@@ -33,7 +33,6 @@ export const useAgentApi = (endpoint: string) => {
 export const useStreamingChat = (endpoint: string) => {
   const [messages, setMessages] = useState<ResponseInputItem[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const clientRef = useRef(new AgentApiClient(endpoint));
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -58,30 +57,27 @@ export const useStreamingChat = (endpoint: string) => {
         role: "user",
         content: userMessage,
       };
-
-      setMessages((prev) => [...prev, userMessageItem]);
       setIsStreaming(true);
-      setError(null);
 
       try {
-        const items: ResponseInputItem[] = [
-          ...(systemPrompt
-            ? [
-                {
-                  type: "message" as const,
-                  role: "system" as const,
-                  content: systemPrompt,
-                },
-              ]
-            : []),
-          { type: "message", role: "user", content: userMessage },
-        ];
-
         const request: ResponsesAgentRequest = {
-          input: items,
+          input: [
+            ...(systemPrompt
+              ? [
+                  {
+                    type: "message" as const,
+                    role: "system" as const,
+                    content: systemPrompt,
+                  },
+                ]
+              : []),
+            ...messages,
+            userMessageItem,
+          ],
           stream: true,
         };
 
+        setMessages((prev) => [...prev, userMessageItem]);
         const streamGenerator = clientRef.current.streamMessage(request);
 
         for await (const chunk of streamGenerator) {
@@ -89,22 +85,20 @@ export const useStreamingChat = (endpoint: string) => {
             break;
           }
 
-          console.log("chunk", chunk);
-
+          // TODO: handle parsing the chunk?
+          // need a separate internal state + state that is used for rendering?
           setMessages((prev) => [...prev, chunk]);
         }
       } catch (err) {
         if (!abortController.signal.aborted) {
           const errorMessage =
             err instanceof Error ? err.message : "Unknown error";
-          setError(errorMessage);
 
-          const errorItem: ResponseOutputItem = {
+          const errorItem: ResponseErrorItem = {
             type: "error",
             code: "STREAM_ERROR",
             message: errorMessage,
           };
-
           setMessages((prev) => [...prev, errorItem]);
         }
       } finally {
@@ -114,7 +108,7 @@ export const useStreamingChat = (endpoint: string) => {
         abortControllerRef.current = null;
       }
     },
-    []
+    [messages]
   );
 
   const stopStreaming = useCallback(() => {
@@ -126,13 +120,11 @@ export const useStreamingChat = (endpoint: string) => {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-    setError(null);
   }, []);
 
   return {
     messages,
     isStreaming,
-    error,
     sendStreamingMessage,
     stopStreaming,
     clearMessages,

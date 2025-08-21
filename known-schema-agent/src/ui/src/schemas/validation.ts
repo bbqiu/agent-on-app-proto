@@ -53,11 +53,18 @@ export const ResponseErrorSchema = z.object({
   message: z.string(),
 });
 
+export const ResponseErrorItemSchema = z.object({
+  type: z.literal("error"),
+  code: z.string(),
+  message: z.string(),
+});
+
 export const ResponseOutputItemSchema = z.discriminatedUnion("type", [
   ResponseOutputMessageSchema,
   ResponseToolCallSchema,
   ResponseToolCallOutputSchema,
   ResponseReasoningItemSchema,
+  ResponseErrorItemSchema,
 ]);
 
 export const ResponseInputMessageSchema = z.object({
@@ -85,10 +92,14 @@ export const ResponseOutputTextDeltaSchema = z.object({
   content_index: z.number().optional(),
 });
 
-export const ResponseErrorItemSchema = z.object({
-  type: z.literal("error"),
-  code: z.string(),
-  message: z.string(),
+export const ResponseOutputTextAnnotationAddedEventSchema = z.object({
+  annotation: ResponseAnnotationSchema,
+  annotation_index: z.number(),
+  content_index: z.number(),
+  item_id: z.string(),
+  output_index: z.number(),
+  sequence_number: z.number(),
+  type: z.literal("response.output_text.annotation.added"),
 });
 
 /////////////////////////////////////////////////
@@ -101,27 +112,12 @@ export const ResponsesResponseSchema = z.object({
   error: ResponseErrorSchema.optional(),
 });
 
-export const ResponseOutputTextAnnotationAddedEventSchema = z.object({
-  annotation: ResponseAnnotationSchema,
-  annotation_index: z.number(),
-  content_index: z.number(),
-  item_id: z.string(),
-  output_index: z.number(),
-  sequence_number: z.number(),
-  type: z.literal("response.output_text.annotation.added"),
-});
-
 export const ResponsesStreamEventSchema = z.discriminatedUnion("type", [
   ResponseOutputItemDoneSchema,
   ResponseOutputTextDeltaSchema,
   ResponseErrorItemSchema,
   ResponseOutputTextAnnotationAddedEventSchema,
 ]);
-
-export const ChatMessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
-  content: z.string(),
-});
 
 export const ResponsesAgentRequestSchema = z.object({
   input: z.array(ResponseInputItemSchema),
@@ -169,7 +165,6 @@ export type ResponseOutputTextAnnotationAddedEvent = z.infer<
   typeof ResponseOutputTextAnnotationAddedEventSchema
 >;
 export type ResponsesStreamEvent = z.infer<typeof ResponsesStreamEventSchema>;
-export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ResponsesAgentRequest = z.infer<typeof ResponsesAgentRequestSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 export type ChatState = z.infer<typeof ChatStateSchema>;

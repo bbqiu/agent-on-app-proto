@@ -17,7 +17,6 @@ const ChatContainer = () => {
   const {
     messages,
     isStreaming,
-    error,
     sendStreamingMessage,
     stopStreaming,
     clearMessages,
