@@ -25,20 +25,18 @@ export const ResponseOutputMessageSchema = z.object({
 });
 
 export const ResponseToolCallSchema = z.object({
-  type: z.literal("tool_call"),
+  type: z.literal("function_call"),
   id: z.string(),
-  function: z.object({
-    name: z.string(),
-    arguments: z.string(),
-  }),
+  call_id: z.string(),
+  name: z.string(),
+  arguments: z.string(),
   status: z.enum(["pending", "completed", "failed"]).optional(),
 });
 
 export const ResponseToolCallOutputSchema = z.object({
-  type: z.literal("tool_call_output"),
-  tool_call_id: z.string(),
+  type: z.literal("function_call_output"),
+  call_id: z.string(),
   output: z.string(),
-  error: z.string().optional(),
 });
 
 export const ResponseReasoningItemSchema = z.object({

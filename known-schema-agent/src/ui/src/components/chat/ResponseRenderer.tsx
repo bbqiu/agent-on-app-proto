@@ -13,9 +13,9 @@ const ResponseRenderer = ({ item }: ResponseRendererProps) => {
   switch (item.type) {
     case "message":
       return <MessageRenderer message={item} />;
-    case "tool_call":
+    case "function_call":
       return <ToolCallRenderer toolCall={item} />;
-    case "tool_call_output":
+    case "function_call_output":
       return <ToolCallOutputRenderer output={item} />;
     case "reasoning":
       return <ReasoningRenderer reasoning={item} />;
