@@ -8,6 +8,7 @@ from typing import Any, Callable, Literal, Optional, Type
 import mlflow
 import mlflow.tracing
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.tracing.trace_manager import InMemoryTraceManager
@@ -56,6 +57,21 @@ class AgentServer:
         self.agent_type = agent_type
         self.validator = AgentValidator(agent_type)
         self.app = FastAPI(title="Agent Server", version="0.0.1")
+
+        # Add CORS middleware to allow frontend connections
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:5174",
+            ],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
         self.logger = logging.getLogger(__name__)
         self._setup_routes()
 
@@ -106,6 +122,11 @@ class AgentServer:
                 return await self._handle_stream_request(request_data, start_time, return_trace)
             else:
                 return await self._handle_invoke_request(request_data, start_time, return_trace)
+
+        @self.app.get("/health")
+        async def health_check():
+            """Health check endpoint for frontend connection testing"""
+            return {"status": "healthy", "server": "agent-server", "version": "0.0.1"}
 
     async def _handle_invoke_request(self, data: dict, start_time: float, return_trace: bool):
         """Handle non-streaming invoke requests"""
@@ -188,12 +209,12 @@ class AgentServer:
                         async for chunk in func(data):
                             chunk = self.validator.validate_and_convert_result(chunk, stream=True)
                             all_chunks.append(chunk)
-                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                            yield f"data: {json.dumps(chunk)}\n\n"
                     else:
                         for chunk in func(data):
                             chunk = self.validator.validate_and_convert_result(chunk, stream=True)
                             all_chunks.append(chunk)
-                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                            yield f"data: {json.dumps(chunk)}\n\n"
 
                     # Log the full streaming session
                     duration = round(time.time() - start_time, 2)
