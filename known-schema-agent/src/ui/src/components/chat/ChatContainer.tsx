@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { useStreamingChat } from '../../hooks/useAgentApi';
-import MessageList from './MessageList';
-import MessageInput from './MessageInput';
-import ConfigPanel from '../config/ConfigPanel';
-import type { AgentConfig } from '../../schemas/validation';
+import { useState } from "react";
+import { useStreamingChat } from "../../hooks/useAgentApi";
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
+import ConfigPanel from "../config/ConfigPanel";
+import type { AgentConfig } from "../../schemas/validation";
 
 const defaultConfig: AgentConfig = {
-  endpoint: 'http://0.0.0.0:8000',
-  systemPrompt: 'You are a helpful AI assistant.',
+  endpoint: "http://0.0.0.0:8000",
+  systemPrompt: undefined,
 };
 
 const ChatContainer = () => {
@@ -61,7 +61,10 @@ const ChatContainer = () => {
 
         {/* Input area */}
         <div className="border-t border-gray-200 bg-white">
-          <MessageInput onSendMessage={handleSendMessage} disabled={isStreaming} />
+          <MessageInput
+            onSendMessage={handleSendMessage}
+            disabled={isStreaming}
+          />
           {isStreaming && (
             <div className="px-4 pb-2">
               <button

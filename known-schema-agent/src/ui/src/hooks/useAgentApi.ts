@@ -55,7 +55,7 @@ export const useStreamingChat = (endpoint: string) => {
       // Add user message to chat
       const userMessageItem: ResponseInputMessage = {
         type: "message",
-        role: "user", // Display role, actual role is in the API request
+        role: "user",
         content: userMessage,
       };
 

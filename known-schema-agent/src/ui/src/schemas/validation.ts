@@ -71,12 +71,6 @@ export const ResponseInputItemSchema = z.discriminatedUnion("type", [
   ResponseOutputItemSchema,
 ]);
 
-export const ResponsesResponseSchema = z.object({
-  id: z.string(),
-  output: z.array(ResponseOutputItemSchema),
-  error: ResponseErrorSchema.optional(),
-});
-
 export const ResponseOutputItemDoneSchema = z.object({
   type: z.literal("response.output_item.done"),
   item: ResponseOutputItemSchema,
@@ -95,6 +89,16 @@ export const ResponseErrorItemSchema = z.object({
   type: z.literal("error"),
   code: z.string(),
   message: z.string(),
+});
+
+/////////////////////////////////////////////////
+/////////////// aggregate types /////////////////
+/////////////////////////////////////////////////
+
+export const ResponsesResponseSchema = z.object({
+  id: z.string(),
+  output: z.array(ResponseOutputItemSchema),
+  error: ResponseErrorSchema.optional(),
 });
 
 export const ResponsesStreamEventSchema = z.discriminatedUnion("type", [
@@ -120,7 +124,7 @@ export const ResponsesAgentRequestSchema = z.object({
 
 export const AgentConfigSchema = z.object({
   endpoint: z.string().url(),
-  systemPrompt: z.string(),
+  systemPrompt: z.string().optional(),
 });
 
 // Type inference from Zod schemas
@@ -132,7 +136,7 @@ export type ResponseToolCallOutput = z.infer<
   typeof ResponseToolCallOutputSchema
 >;
 export type ResponseReasoningItem = z.infer<typeof ResponseReasoningItemSchema>;
-export type ResponseErrorItem = z.infer<typeof ResponseErrorItemSchema>;
+export type ResponseError = z.infer<typeof ResponseErrorSchema>;
 export type ResponseOutputItem = z.infer<typeof ResponseOutputItemSchema>;
 export type ResponseInputItem = z.infer<typeof ResponseInputItemSchema>;
 export type ResponsesResponse = z.infer<typeof ResponsesResponseSchema>;
