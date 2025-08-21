@@ -7,6 +7,14 @@ import {
   ResponsesResponseSchema,
   ResponsesStreamEventSchema,
 } from "../schemas/validation";
+import { createParser, type EventSourceMessage } from "eventsource-parser";
+
+// Extend the parser type to include our custom property
+interface ExtendedParser {
+  lastItem?: ResponseOutputItem | null;
+  feed(chunk: string): void;
+  reset(): void;
+}
 
 export class AgentApiClient {
   private baseUrl: string;
@@ -69,7 +77,54 @@ export class AgentApiClient {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+
+    // Create the SSE parser
+    const parser = createParser({
+      onEvent(event: EventSourceMessage) {
+        if (event.data === "[DONE]") {
+          return;
+        }
+
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.error) {
+            throw new Error(data.error.message || "Stream error");
+          }
+
+          if (data) {
+            // Validate the chunk
+            try {
+              const validatedChunk = ResponsesStreamEventSchema.parse(data);
+              if (
+                validatedChunk.type === "response.output_item.done" &&
+                validatedChunk.item
+              ) {
+                // Store the item to be yielded
+                (parser as ExtendedParser).lastItem =
+                  validatedChunk.item as ResponseOutputItem;
+              } else if (validatedChunk.type === "error") {
+                // Store the error item to be yielded
+                (parser as ExtendedParser).lastItem =
+                  validatedChunk as ResponseOutputItem;
+              }
+            } catch (validationError) {
+              console.warn("Chunk validation failed:", validationError);
+              // Store anyway for development
+              if (data.item) {
+                (parser as ExtendedParser).lastItem =
+                  data.item as ResponseOutputItem;
+              }
+            }
+          }
+        } catch (parseError) {
+          console.warn("Failed to parse SSE data:", event.data, parseError);
+        }
+      },
+      onError(error) {
+        console.error("SSE parsing error:", error);
+      },
+    }) as ExtendedParser;
 
     try {
       while (true) {
@@ -77,52 +132,18 @@ export class AgentApiClient {
 
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        const chunk = decoder.decode(value, { stream: true });
+        parser.feed(chunk);
 
-        for (const line of lines) {
-          if (line.trim() === "") continue;
-          if (line === "data: [DONE]") return;
-
-          if (line.startsWith("data: ")) {
-            console.log("line", line);
-            try {
-              const jsonStr = line.slice(6);
-              const data = JSON.parse(jsonStr);
-
-              console.log("data", data);
-
-              if (data.error) {
-                throw new Error(data.error.message || "Stream error");
-              }
-
-              if (data) {
-                // Validate the chunk
-                try {
-                  const validatedChunk = ResponsesStreamEventSchema.parse(data);
-                  console.log("validatedChunk", validatedChunk);
-                  if (validatedChunk.type === "response.output_item.done" && validatedChunk.item) {
-                    yield validatedChunk.item as ResponseOutputItem;
-                  } else if (validatedChunk.type === "error") {
-                    yield validatedChunk as ResponseOutputItem;
-                  }
-                } catch (validationError) {
-                  console.warn("Chunk validation failed:", validationError);
-                  // Yield anyway for development
-                  if (data.item) {
-                    yield data.item as ResponseOutputItem;
-                  }
-                }
-              }
-            } catch (parseError) {
-              console.warn("Failed to parse stream line:", line, parseError);
-            }
-          }
+        // Check if we have an item to yield
+        if (parser.lastItem) {
+          yield parser.lastItem;
+          parser.lastItem = null;
         }
       }
     } finally {
       reader.releaseLock();
+      parser.reset();
     }
   }
 
