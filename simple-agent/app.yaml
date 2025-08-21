@@ -1,2 +1,1 @@
-
 command: ["uv", "run", "agent-server"]
