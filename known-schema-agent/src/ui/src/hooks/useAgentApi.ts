@@ -6,7 +6,7 @@ import type {
   ResponseOutputItem,
   ResponseInputItem,
   ResponseInputMessage,
-} from "../schemas/responses";
+} from "../schemas/validation";
 
 export const useAgentApi = (endpoint: string) => {
   const clientRef = useRef(new AgentApiClient(endpoint));

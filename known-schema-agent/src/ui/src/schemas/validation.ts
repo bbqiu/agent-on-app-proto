@@ -101,10 +101,21 @@ export const ResponsesResponseSchema = z.object({
   error: ResponseErrorSchema.optional(),
 });
 
+export const ResponseOutputTextAnnotationAddedEventSchema = z.object({
+  annotation: ResponseAnnotationSchema,
+  annotation_index: z.number(),
+  content_index: z.number(),
+  item_id: z.string(),
+  output_index: z.number(),
+  sequence_number: z.number(),
+  type: z.literal("response.output_text.annotation.added"),
+});
+
 export const ResponsesStreamEventSchema = z.discriminatedUnion("type", [
   ResponseOutputItemDoneSchema,
   ResponseOutputTextDeltaSchema,
-  ResponseErrorSchema,
+  ResponseErrorItemSchema,
+  ResponseOutputTextAnnotationAddedEventSchema,
 ]);
 
 export const ChatMessageSchema = z.object({
@@ -127,6 +138,12 @@ export const AgentConfigSchema = z.object({
   systemPrompt: z.string().optional(),
 });
 
+export const ChatStateSchema = z.object({
+  input: z.array(ResponseInputItemSchema),
+  isLoading: z.boolean(),
+  error: z.string().optional(),
+});
+
 // Type inference from Zod schemas
 export type ResponseAnnotation = z.infer<typeof ResponseAnnotationSchema>;
 export type ResponseOutputText = z.infer<typeof ResponseOutputTextSchema>;
@@ -137,10 +154,22 @@ export type ResponseToolCallOutput = z.infer<
 >;
 export type ResponseReasoningItem = z.infer<typeof ResponseReasoningItemSchema>;
 export type ResponseError = z.infer<typeof ResponseErrorSchema>;
+export type ResponseErrorItem = z.infer<typeof ResponseErrorItemSchema>;
 export type ResponseOutputItem = z.infer<typeof ResponseOutputItemSchema>;
+export type ResponseInputMessage = z.infer<typeof ResponseInputMessageSchema>;
 export type ResponseInputItem = z.infer<typeof ResponseInputItemSchema>;
 export type ResponsesResponse = z.infer<typeof ResponsesResponseSchema>;
+export type ResponseOutputItemDone = z.infer<
+  typeof ResponseOutputItemDoneSchema
+>;
+export type ResponseTextDeltaEvent = z.infer<
+  typeof ResponseOutputTextDeltaSchema
+>;
+export type ResponseOutputTextAnnotationAddedEvent = z.infer<
+  typeof ResponseOutputTextAnnotationAddedEventSchema
+>;
 export type ResponsesStreamEvent = z.infer<typeof ResponsesStreamEventSchema>;
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ResponsesAgentRequest = z.infer<typeof ResponsesAgentRequestSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+export type ChatState = z.infer<typeof ChatStateSchema>;

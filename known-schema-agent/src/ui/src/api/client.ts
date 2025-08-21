@@ -102,8 +102,10 @@ export class AgentApiClient {
                 try {
                   const validatedChunk = ResponsesStreamEventSchema.parse(data);
                   console.log("validatedChunk", validatedChunk);
-                  if (validatedChunk.item) {
+                  if (validatedChunk.type === "response.output_item.done" && validatedChunk.item) {
                     yield validatedChunk.item as ResponseOutputItem;
+                  } else if (validatedChunk.type === "error") {
+                    yield validatedChunk as ResponseOutputItem;
                   }
                 } catch (validationError) {
                   console.warn("Chunk validation failed:", validationError);
