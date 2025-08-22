@@ -7,8 +7,3 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-/* Custom hover effect for message groups */
-.group:hover .group-hover\:opacity-100 {
-  opacity: 1;
-}

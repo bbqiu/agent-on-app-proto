@@ -14,11 +14,13 @@ A React-based chat interface for interacting with OpenAI Response API compatible
 ## Setup
 
 1. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 2. **Start development server**:
+
    ```bash
    npm run dev
    ```
@@ -73,10 +75,10 @@ The UI uses React Query for state management and custom hooks for streaming:
 ## Development
 
 The project uses:
+
 - **React 18** with TypeScript
-- **Tailwind CSS** for styling
+- **Databricks Design System** for styling and components
 - **Zod** for schema validation
-- **Lucide React** for icons
 - **Vite** for build tooling
 
 ## Browser Compatibility
@@ -87,6 +89,7 @@ The project uses:
 - Edge 89+
 
 Requires modern browser support for:
+
 - Server-Sent Events
 - Clipboard API
 - Fetch API with Streaming
