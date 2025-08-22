@@ -11,12 +11,7 @@ import type {
 import AgentAvatar from "../agents/AgentAvatar";
 import CopyButton from "../common/CopyButton";
 import { formatTimestamp, getTimestampFromId } from "../../utils/time";
-import {
-  Button,
-  Alert,
-  CheckIcon,
-  WrenchIcon,
-} from "@databricks/design-system";
+import { Button, CheckIcon, WrenchIcon } from "@databricks/design-system";
 
 // TextRenderer Component
 interface TextRendererProps {
@@ -361,27 +356,70 @@ interface ErrorRendererProps {
 
 const ErrorRenderer = ({ error, onRetry }: ErrorRendererProps) => {
   return (
-    <Alert
-      componentId="response-output-item-error"
-      type="error"
-      message={`Error: ${error.code}`}
-      description={
-        <div>
-          <div style={{ marginBottom: "8px" }}>{error.message}</div>
-          {onRetry && (
-            <Button
-              onClick={onRetry}
-              type="tertiary"
-              size="small"
-              componentId="retry-button"
-              style={{ marginTop: "8px" }}
-            >
-              Retry
-            </Button>
-          )}
+    <div
+      style={{
+        padding: "16px",
+        backgroundColor: "#fef2f2",
+        border: "1px solid #fecaca",
+        borderRadius: "8px",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "12px",
+      }}
+    >
+      {/* Red circular icon with white exclamation mark */}
+      <div
+        style={{
+          width: "20px",
+          height: "20px",
+          backgroundColor: "#dc2626",
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          marginTop: "2px",
+        }}
+      >
+        <span style={{ color: "white", fontSize: "12px", fontWeight: "bold" }}>
+          !
+        </span>
+      </div>
+
+      {/* Error content */}
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            color: "#991b1b",
+            marginBottom: "4px",
+          }}
+        >
+          Error
         </div>
-      }
-    />
+        <div
+          style={{
+            fontSize: "13px",
+            color: "#991b1b",
+            lineHeight: "1.4",
+          }}
+        >
+          {error.message}
+        </div>
+        {onRetry && (
+          <Button
+            onClick={onRetry}
+            type="tertiary"
+            size="small"
+            componentId="retry-button"
+            style={{ marginTop: "8px" }}
+          >
+            Retry
+          </Button>
+        )}
+      </div>
+    </div>
   );
 };
 
