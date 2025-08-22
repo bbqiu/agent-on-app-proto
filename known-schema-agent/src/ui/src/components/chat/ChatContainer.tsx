@@ -4,12 +4,15 @@ import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 import ConfigPanel from "../config/ConfigPanel";
 import type { AgentConfig } from "../../schemas/validation";
-import { Button, Layout } from "@databricks/design-system";
-import { Settings2, Trash2 } from "lucide-react";
+import {
+  Button,
+  Layout,
+  GearIcon,
+  ListClearIcon,
+} from "@databricks/design-system";
 
 const defaultConfig: AgentConfig = {
   endpoint: "http://0.0.0.0:8000",
-  systemPrompt: undefined,
 };
 
 // Modal component for settings
@@ -94,7 +97,7 @@ const ChatContainer = () => {
   } = useStreamingChat(config.endpoint);
 
   const handleSendMessage = async (content: string, systemPrompt?: string) => {
-    await sendStreamingMessage(content, systemPrompt || config.systemPrompt);
+    await sendStreamingMessage(content, systemPrompt);
   };
 
   const handleClearChat = () => {
@@ -139,7 +142,6 @@ const ChatContainer = () => {
             <div style={{ display: "flex", gap: "16px" }}>
               <Button
                 onClick={() => setShowConfig(true)}
-                type="tertiary"
                 size="small"
                 componentId="settings-button"
                 style={{
@@ -148,12 +150,10 @@ const ChatContainer = () => {
                   padding: "8px",
                   minWidth: "auto",
                 }}
-              >
-                <Settings2 style={{ width: "16px", height: "16px" }} />
-              </Button>
+                icon={<GearIcon size={16} />}
+              />
               <Button
                 onClick={handleClearChat}
-                type="tertiary"
                 size="small"
                 componentId="clear-chat-button"
                 style={{
@@ -162,9 +162,8 @@ const ChatContainer = () => {
                   padding: "8px",
                   minWidth: "auto",
                 }}
-              >
-                <Trash2 style={{ width: "16px", height: "16px" }} />
-              </Button>
+                icon={<ListClearIcon size={16} />}
+              />
             </div>
           </div>
         </Layout.Header>

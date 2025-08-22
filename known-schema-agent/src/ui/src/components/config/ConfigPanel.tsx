@@ -1,7 +1,12 @@
 import { useState } from "react";
 import type { AgentConfig } from "../../schemas/validation";
-import { X, Settings, Save } from "lucide-react";
-import { Button, Input, Layout } from "@databricks/design-system";
+import {
+  Button,
+  Input,
+  Layout,
+  GearIcon,
+  ListClearIcon,
+} from "@databricks/design-system";
 
 interface ConfigPanelProps {
   config: AgentConfig;
@@ -60,9 +65,7 @@ const ConfigPanel = ({ config, onConfigChange, onClose }: ConfigPanelProps) => {
                 justifyContent: "center",
               }}
             >
-              <Settings
-                style={{ width: "20px", height: "20px", color: "white" }}
-              />
+              <GearIcon size={20} />
             </div>
             <div>
               <h2
@@ -90,7 +93,6 @@ const ConfigPanel = ({ config, onConfigChange, onClose }: ConfigPanelProps) => {
           </div>
           <Button
             onClick={onClose}
-            type="tertiary"
             componentId="close-config-button"
             style={{
               width: "36px",
@@ -100,9 +102,7 @@ const ConfigPanel = ({ config, onConfigChange, onClose }: ConfigPanelProps) => {
               border: "1px solid #e2e8f0",
               backgroundColor: "white",
             }}
-            endIcon={
-              <X style={{ width: "16px", height: "16px", color: "#64748b" }} />
-            }
+            endIcon={<ListClearIcon size={16} />}
           />
         </div>
       </div>
@@ -164,7 +164,7 @@ const ConfigPanel = ({ config, onConfigChange, onClose }: ConfigPanelProps) => {
               onClick={handleSave}
               type="primary"
               componentId="save-config-button"
-              endIcon={<Save style={{ width: "16px", height: "16px" }} />}
+              endIcon={<ListClearIcon size={16} />}
               style={{
                 flex: 1,
                 borderRadius: "8px",

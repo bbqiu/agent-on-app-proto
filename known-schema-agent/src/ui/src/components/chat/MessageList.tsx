@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ResponseInputItem } from "../../schemas/validation";
-import ResponseRenderer from "./ResponseRenderer";
+import ResponseRenderer from "./ConsolidatedRenderer";
 import LoadingIndicator from "../common/LoadingIndicator";
 
 interface MessageListProps {
