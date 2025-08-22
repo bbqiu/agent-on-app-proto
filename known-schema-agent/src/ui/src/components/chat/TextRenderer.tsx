@@ -25,18 +25,39 @@ const TextRenderer = ({ content, isUser = false }: TextRendererProps) => {
 
       // Add annotated text
       const annotatedText = text.slice(annotation.start_index, annotation.end_index);
+      
+      const getAnnotationStyle = () => {
+        switch (annotation.type) {
+          case 'file_citation':
+            return {
+              backgroundColor: '#dbeafe',
+              color: '#1e40af',
+              border: '1px solid #93c5fd'
+            };
+          case 'url_citation':
+            return {
+              backgroundColor: '#dcfce7',
+              color: '#166534',
+              border: '1px solid #86efac'
+            };
+          default:
+            return {
+              backgroundColor: '#f3e8ff',
+              color: '#7c3aed',
+              border: '1px solid #c4b5fd'
+            };
+        }
+      };
+
       parts.push(
         <span
           key={index}
-          className={`
-            inline-block px-1 rounded
-            ${annotation.type === 'file_citation' 
-              ? 'bg-blue-100 text-blue-800 border border-blue-200' 
-              : annotation.type === 'url_citation'
-              ? 'bg-green-100 text-green-800 border border-green-200'
-              : 'bg-purple-100 text-purple-800 border border-purple-200'
-            }
-          `}
+          style={{
+            display: 'inline-block',
+            padding: '2px 4px',
+            borderRadius: '4px',
+            ...getAnnotationStyle()
+          }}
           title={annotation.url || annotation.file_id || 'Annotation'}
         >
           {annotatedText}
@@ -63,7 +84,7 @@ const TextRenderer = ({ content, isUser = false }: TextRendererProps) => {
   }
 
   return (
-    <div className={`text-sm ${isUser ? 'text-white' : 'text-gray-900'}`}>
+    <div style={{ fontSize: '14px', color: isUser ? 'white' : '#111827' }}>
       {renderTextWithAnnotations(displayText)}
     </div>
   );

@@ -1,5 +1,6 @@
 import type { ResponseErrorItem } from "../../schemas/validation";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { Alert, Button } from "@databricks/design-system";
 
 interface ErrorRendererProps {
   error: ResponseErrorItem;
@@ -8,27 +9,36 @@ interface ErrorRendererProps {
 
 const ErrorRenderer = ({ error, onRetry }: ErrorRendererProps) => {
   return (
-    <div className="p-3 rounded-lg border border-red-200 bg-red-50">
-      <div className="flex items-center gap-2 mb-2">
-        <AlertCircle className="w-4 h-4 text-red-600" />
-        <span className="font-medium text-sm text-red-800">Error</span>
-        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
-          {error.code}
-        </span>
-      </div>
+    <Alert
+      type="error"
+      message={
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <AlertCircle style={{ width: '16px', height: '16px', color: '#dc2626' }} />
+            <span style={{ fontWeight: '500', fontSize: '14px', color: '#991b1b' }}>Error</span>
+            <span style={{ fontSize: '12px', color: '#dc2626', backgroundColor: '#fef2f2', padding: '4px 8px', borderRadius: '4px' }}>
+              {error.code}
+            </span>
+          </div>
 
-      <div className="text-sm text-red-700 mb-2">{error.message}</div>
+          <div style={{ fontSize: '14px', color: '#b91c1c', marginBottom: '8px' }}>{error.message}</div>
 
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          className="mt-2 flex items-center gap-1 px-2 py-1 text-xs bg-red-100 hover:bg-red-200 border border-red-200 rounded transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" />
-          Retry
-        </button>
-      )}
-    </div>
+          {onRetry && (
+            <Button
+              onClick={onRetry}
+              type="tertiary"
+              size="small"
+              componentId="retry-button"
+              endIcon={<RefreshCw style={{ width: '12px', height: '12px' }} />}
+              style={{ marginTop: '8px' }}
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+      }
+      componentId="error-alert"
+    />
   );
 };
 

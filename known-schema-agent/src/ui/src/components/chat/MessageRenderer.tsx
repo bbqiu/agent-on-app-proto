@@ -1,8 +1,11 @@
-import type { ResponseOutputMessage, ResponseInputItem } from '../../schemas/validation';
-import AgentAvatar from '../agents/AgentAvatar';
-import TextRenderer from './TextRenderer';
-import CopyButton from '../common/CopyButton';
-import { formatTimestamp, getTimestampFromId } from '../../utils/time';
+import type {
+  ResponseOutputMessage,
+  ResponseInputItem,
+} from "../../schemas/validation";
+import AgentAvatar from "../agents/AgentAvatar";
+import TextRenderer from "./TextRenderer";
+import CopyButton from "../common/CopyButton";
+import { formatTimestamp, getTimestampFromId } from "../../utils/time";
 
 interface MessageRendererProps {
   message: ResponseInputItem;
@@ -10,57 +13,95 @@ interface MessageRendererProps {
 
 const MessageRenderer = ({ message }: MessageRendererProps) => {
   // Handle both ResponseInputMessage (content: string) and ResponseOutputMessage (content: array)
-  const isInputMessage = typeof (message as any).content === 'string';
-  const isUser = isInputMessage 
-    ? (message as any).role === 'user'
-    : (message as ResponseOutputMessage).content.some(content => 
-        content.text.startsWith('User:')
+  const isInputMessage = typeof (message as any).content === "string";
+  const isUser = isInputMessage
+    ? (message as any).role === "user"
+    : (message as ResponseOutputMessage).content.some((content) =>
+        content.text.startsWith("User:")
       );
 
-  const timestamp = (message as any).id ? getTimestampFromId((message as any).id) : Date.now();
-  const messageText = isInputMessage 
-    ? (message as any).content 
-    : (message as ResponseOutputMessage).content.map(c => c.text).join('\n');
+  const timestamp = (message as any).id
+    ? getTimestampFromId((message as any).id)
+    : Date.now();
+  const messageText = isInputMessage
+    ? (message as any).content
+    : (message as ResponseOutputMessage).content.map((c) => c.text).join("\n");
 
   return (
-    <div className={`group flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <AgentAvatar 
-        role={isUser ? 'user' : 'assistant'} 
-        agentId={(message as any).id || 'unknown'}
-      />
-      
-      <div className={`flex-1 max-w-3xl ${isUser ? 'flex justify-end' : ''}`}>
-        <div className={`
-          p-3 rounded-lg relative
-          ${isUser 
-            ? 'bg-blue-500 text-white ml-12' 
-            : 'bg-white border border-gray-200'
-          }
-        `}>
-          {/* Copy button */}
-          <div className={`absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity ${isUser ? 'left-2' : 'right-2'}`}>
-            <CopyButton text={messageText} />
-          </div>
+    <div
+      style={{
+        display: "flex",
+        gap: "16px",
+        marginBottom: "24px",
+        position: "relative",
+      }}
+    >
+      <div style={{ flexShrink: 0 }}>
+        <AgentAvatar
+          role={isUser ? "user" : "assistant"}
+          agentId={(message as any).id || "unknown"}
+          size="md"
+        />
+      </div>
 
-          {/* Message content */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        {/* Role label */}
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            color: "#374151",
+            marginBottom: "8px",
+          }}
+        >
+          {isUser ? "You" : "Agent"}
+        </div>
+
+        {/* Message content */}
+        <div
+          style={{
+            fontSize: "15px",
+            lineHeight: "1.6",
+            color: "#111827",
+          }}
+        >
           {isInputMessage ? (
-            <div className={`text-sm ${isUser ? 'text-white' : 'text-gray-900'}`}>
-              {messageText}
-            </div>
+            <div>{messageText}</div>
           ) : (
             (message as ResponseOutputMessage).content.map((content, index) => (
-              <TextRenderer 
-                key={index} 
-                content={content} 
-                isUser={isUser}
-              />
+              <TextRenderer key={index} content={content} isUser={false} />
             ))
           )}
+        </div>
 
-          {/* Timestamp */}
-          <div className={`text-xs mt-2 opacity-70 ${isUser ? 'text-blue-100' : 'text-gray-500'}`}>
-            {formatTimestamp(timestamp)}
-          </div>
+        {/* Timestamp */}
+        <div
+          style={{
+            fontSize: "12px",
+            marginTop: "12px",
+            color: "#9ca3af",
+          }}
+        >
+          {formatTimestamp(timestamp)}
+        </div>
+
+        {/* Copy button */}
+        <div
+          style={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            opacity: 0,
+            transition: "opacity 0.2s",
+          }}
+          className="group-hover:opacity-100"
+        >
+          <CopyButton text={messageText} />
         </div>
       </div>
     </div>

@@ -1,10 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Databricks Design System styles are imported in main.tsx */
+/* Custom styles for the application */
 
 :root {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom hover effect for message groups */
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
 }

@@ -22,30 +22,64 @@ const MessageList = ({ messages, isLoading }: MessageListProps) => {
   }, [messages, isLoading]);
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div
+      style={{
+        height: "100%",
+        overflowY: "auto",
+        padding: "0",
+        backgroundColor: "#ffffff",
+      }}
+    >
       {messages.length === 0 ? (
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <div className="text-center">
-            <div className="text-6xl mb-4">💬</div>
-            <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-            <p className="text-sm">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+          }}
+        >
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "64px", marginBottom: "16px" }}>💬</div>
+            <h3
+              style={{
+                fontSize: "18px",
+                fontWeight: "500",
+                marginBottom: "8px",
+              }}
+            >
+              Start a conversation
+            </h3>
+            <span style={{ fontSize: "14px", color: "#6b7280" }}>
               Send a message to begin chatting with the agent
-            </p>
+            </span>
           </div>
         </div>
       ) : (
-        <>
+        <div
+          style={{ maxWidth: "800px", margin: "0 auto", padding: "32px 24px" }}
+        >
           {messages.map((message, index) => (
-            <div key={`${message.type}-${index}`} className="mb-4">
+            <div
+              key={`${message.type}-${index}`}
+              style={{ marginBottom: "32px" }}
+            >
               <ResponseRenderer item={message} />
             </div>
           ))}
           {isLoading && (
-            <div className="mb-4">
+            <div
+              style={{
+                marginBottom: "32px",
+                maxWidth: "800px",
+                margin: "0 auto",
+                padding: "0 24px",
+              }}
+            >
               <LoadingIndicator />
             </div>
           )}
-        </>
+        </div>
       )}
       <div ref={messagesEndRef} />
     </div>

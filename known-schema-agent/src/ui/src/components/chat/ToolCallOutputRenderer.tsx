@@ -1,5 +1,5 @@
-import type { ResponseToolCallOutput } from '../../schemas/validation';
-import { Terminal, AlertCircle } from 'lucide-react';
+import type { ResponseToolCallOutput } from "../../schemas/validation";
+import { Terminal } from "lucide-react";
 
 interface ToolCallOutputRendererProps {
   output: ResponseToolCallOutput;
@@ -7,31 +7,50 @@ interface ToolCallOutputRendererProps {
 
 const ToolCallOutputRenderer = ({ output }: ToolCallOutputRendererProps) => {
   return (
-    <div className="p-3 rounded-lg border border-blue-200 bg-blue-50">
-      <div className="flex items-center gap-2 mb-2">
-        <Terminal className="w-4 h-4 text-blue-600" />
-        <span className="font-medium text-sm text-blue-800">Tool Output</span>
-        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-          {output.tool_call_id}
-        </span>
+    <div
+      style={{
+        marginBottom: "16px",
+      }}
+    >
+      {/* Output header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "12px",
+          fontSize: "14px",
+          color: "#6b7280",
+        }}
+      >
+        <Terminal style={{ width: "16px", height: "16px" }} />
+        <span>Output</span>
       </div>
-      
-      <div className="text-sm">
-        {output.error ? (
-          <div className="bg-red-50 border border-red-200 rounded p-2">
-            <div className="flex items-center gap-2 text-red-700 mb-1">
-              <AlertCircle className="w-4 h-4" />
-              <span className="font-medium">Error</span>
-            </div>
-            <pre className="whitespace-pre-wrap text-xs text-red-600">
-              {output.error}
-            </pre>
-          </div>
-        ) : (
-          <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded border text-gray-700">
-            {output.output}
-          </pre>
-        )}
+
+      {/* Output content */}
+      <div
+        style={{
+          backgroundColor: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        <pre
+          style={{
+            margin: 0,
+            padding: "16px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+            fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', monospace",
+            color: "#1e293b",
+            backgroundColor: "transparent",
+            whiteSpace: "pre-wrap",
+            overflow: "auto",
+          }}
+        >
+          {output.output}
+        </pre>
       </div>
     </div>
   );

@@ -23,8 +23,16 @@ const ResponseRenderer = ({ item }: ResponseRendererProps) => {
       return <ErrorRenderer error={item} />;
     default:
       return (
-        <div className="p-3 bg-gray-100 rounded-lg">
-          <p className="text-sm text-gray-600">Unknown message type</p>
+        <div
+          style={{
+            padding: "12px",
+            backgroundColor: "#f3f4f6",
+            borderRadius: "8px",
+          }}
+        >
+          <p style={{ fontSize: "14px", color: "#6b7280" }}>
+            Unknown message type
+          </p>
         </div>
       );
   }

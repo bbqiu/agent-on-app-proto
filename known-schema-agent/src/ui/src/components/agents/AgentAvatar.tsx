@@ -1,16 +1,16 @@
-import { User, Bot } from 'lucide-react';
+import { UserIcon, SparkleDoubleIcon } from "@databricks/design-system";
 
 interface AgentAvatarProps {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   agentId?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
 }
 
-const AgentAvatar = ({ role, agentId, size = 'md' }: AgentAvatarProps) => {
+const AgentAvatar = ({ role, agentId, size = "md" }: AgentAvatarProps) => {
   // Generate consistent colors based on agent ID
   const getAvatarColor = (id?: string) => {
-    if (!id || role === 'user') {
-      return role === 'user' ? 'bg-blue-500' : 'bg-green-500';
+    if (!id || role === "user") {
+      return role === "user" ? "#3b82f6" : "#10b981";
     }
 
     // Simple hash function for consistent colors
@@ -20,54 +20,48 @@ const AgentAvatar = ({ role, agentId, size = 'md' }: AgentAvatarProps) => {
     }
 
     const colors = [
-      'bg-purple-500',
-      'bg-pink-500',
-      'bg-indigo-500',
-      'bg-teal-500',
-      'bg-orange-500',
-      'bg-red-500',
-      'bg-yellow-500',
-      'bg-green-500',
+      "#8b5cf6",
+      "#ec4899",
+      "#6366f1",
+      "#14b8a6",
+      "#f97316",
+      "#ef4444",
+      "#eab308",
+      "#10b981",
     ];
 
     return colors[Math.abs(hash) % colors.length];
   };
 
-  const getSizeClasses = () => {
+  const getSize = () => {
     switch (size) {
-      case 'sm':
-        return 'w-6 h-6';
-      case 'lg':
-        return 'w-12 h-12';
+      case "sm":
+        return 24;
+      case "lg":
+        return 48;
       default:
-        return 'w-8 h-8';
+        return 32;
     }
   };
 
-  const getIconSize = () => {
-    switch (size) {
-      case 'sm':
-        return 'w-3 h-3';
-      case 'lg':
-        return 'w-6 h-6';
-      default:
-        return 'w-4 h-4';
-    }
-  };
-
-  const colorClass = getAvatarColor(agentId);
+  const color = getAvatarColor(agentId);
+  const sizePx = getSize();
 
   return (
-    <div className={`
-      ${getSizeClasses()} 
-      ${colorClass} 
-      rounded-full flex items-center justify-center text-white flex-shrink-0
-    `}>
-      {role === 'user' ? (
-        <User className={getIconSize()} />
-      ) : (
-        <Bot className={getIconSize()} />
-      )}
+    <div
+      style={{
+        width: sizePx,
+        height: sizePx,
+        backgroundColor: color,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "white",
+        flexShrink: 0,
+      }}
+    >
+      {role === "user" ? <UserIcon /> : <SparkleDoubleIcon />}
     </div>
   );
 };

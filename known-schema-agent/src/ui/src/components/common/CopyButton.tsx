@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { Button } from '@databricks/design-system';
 
 interface CopyButtonProps {
   text: string;
-  className?: string;
 }
 
-const CopyButton = ({ text, className = '' }: CopyButtonProps) => {
+const CopyButton = ({ text }: CopyButtonProps) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -20,17 +20,15 @@ const CopyButton = ({ text, className = '' }: CopyButtonProps) => {
   };
 
   return (
-    <button
+    <Button
       onClick={handleCopy}
-      className={`p-1 hover:bg-gray-100 rounded transition-colors ${className}`}
+      type="tertiary"
+      size="small"
+      componentId="copy-button"
+      endIcon={copied ? <Check style={{ width: '16px', height: '16px', color: '#10b981' }} /> : <Copy style={{ width: '16px', height: '16px', color: '#6b7280' }} />}
       title="Copy to clipboard"
-    >
-      {copied ? (
-        <Check className="w-4 h-4 text-green-500" />
-      ) : (
-        <Copy className="w-4 h-4 text-gray-500" />
-      )}
-    </button>
+      style={{ padding: '4px' }}
+    />
   );
 };
 

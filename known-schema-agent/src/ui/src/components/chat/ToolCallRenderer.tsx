@@ -9,45 +9,116 @@ const ToolCallRenderer = ({ toolCall }: ToolCallRendererProps) => {
   const getStatusIcon = () => {
     switch (toolCall.status) {
       case "pending":
-        return <Clock className="w-4 h-4 text-yellow-500" />;
+        return (
+          <Clock style={{ width: "16px", height: "16px", color: "#eab308" }} />
+        );
       case "completed":
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return (
+          <CheckCircle
+            style={{ width: "16px", height: "16px", color: "#10b981" }}
+          />
+        );
       case "failed":
-        return <XCircle className="w-4 h-4 text-red-500" />;
+        return (
+          <XCircle
+            style={{ width: "16px", height: "16px", color: "#ef4444" }}
+          />
+        );
       default:
-        return <Wrench className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusColor = () => {
-    switch (toolCall.status) {
-      case "pending":
-        return "border-yellow-200 bg-yellow-50";
-      case "completed":
-        return "border-green-200 bg-green-50";
-      case "failed":
-        return "border-red-200 bg-red-50";
-      default:
-        return "border-gray-200 bg-gray-50";
+        return (
+          <Wrench style={{ width: "16px", height: "16px", color: "#6b7280" }} />
+        );
     }
   };
 
   return (
-    <div className={`p-3 rounded-lg border ${getStatusColor()}`}>
-      <div className="flex items-center gap-2 mb-2">
+    <div
+      style={{
+        marginBottom: "16px",
+        padding: "0",
+      }}
+    >
+      {/* Tool call header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "12px",
+          fontSize: "14px",
+          color: "#6b7280",
+        }}
+      >
         {getStatusIcon()}
-        <span className="font-medium text-sm">Tool Call: {toolCall.name}</span>
+        <span
+          style={{
+            fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', monospace",
+          }}
+        >
+          system.ai.{toolCall.name}
+        </span>
         {toolCall.status && (
-          <span className="text-xs px-2 py-1 rounded bg-white border capitalize">
+          <span
+            style={{
+              fontSize: "12px",
+              padding: "2px 6px",
+              borderRadius: "3px",
+              backgroundColor: "#f3f4f6",
+              color: "#6b7280",
+              textTransform: "capitalize",
+            }}
+          >
             {toolCall.status}
           </span>
         )}
       </div>
 
-      <div className="text-sm text-gray-600">
-        <div className="font-medium mb-1">Arguments:</div>
-        <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded border">
-          {JSON.stringify(JSON.parse(toolCall.arguments), null, 2)}
+      {/* Code block */}
+      <div
+        style={{
+          backgroundColor: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        {/* Language header */}
+        <div
+          style={{
+            padding: "8px 12px",
+            backgroundColor: "#f1f5f9",
+            borderBottom: "1px solid #e2e8f0",
+            fontSize: "12px",
+            color: "#64748b",
+            fontWeight: "500",
+          }}
+        >
+          Python
+        </div>
+
+        {/* Code content */}
+        <pre
+          style={{
+            margin: 0,
+            padding: "16px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+            fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', monospace",
+            color: "#1e293b",
+            backgroundColor: "transparent",
+            overflow: "auto",
+          }}
+        >
+          {(() => {
+            try {
+              const args = JSON.parse(toolCall.arguments);
+              return Object.entries(args)
+                .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
+                .join("\n");
+            } catch {
+              return toolCall.arguments;
+            }
+          })()}
         </pre>
       </div>
     </div>
