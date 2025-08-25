@@ -50,7 +50,14 @@ const MessageList = ({ messages, isLoading }: MessageListProps) => {
             >
               Start a conversation
             </h3>
-            <span style={{ fontSize: "14px", color: "#6b7280" }}>
+            <span
+              style={{
+                fontSize: "14px",
+                color: "#6b7280",
+                fontFamily:
+                  "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              }}
+            >
               Send a message to begin chatting with the agent
             </span>
           </div>

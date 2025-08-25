@@ -32,7 +32,16 @@ const LoadingIndicator = ({
       >
         <Spinner size="small" />
       </div>
-      <div style={{ fontSize: "14px", color: "#6b7280" }}>{message}</div>
+      <div
+        style={{
+          fontSize: "14px",
+          color: "#6b7280",
+          fontFamily:
+            "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        }}
+      >
+        {message}
+      </div>
     </div>
   );
 };

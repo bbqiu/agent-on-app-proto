@@ -218,7 +218,14 @@ const MessageInput = ({
             >
               +
             </div>
-            <span style={{ color: "#2563eb", fontSize: "14px" }}>
+            <span
+              style={{
+                color: "#2563eb",
+                fontSize: "14px",
+                fontFamily:
+                  "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              }}
+            >
               Add system prompt
             </span>
           </div>
@@ -292,13 +299,20 @@ const MessageInput = ({
 
         <div
           style={{
-            fontSize: "12px",
-            color: "#9ca3af",
             marginTop: "12px",
             textAlign: "center",
           }}
         >
-          Press Enter to send
+          <div
+            style={{
+              fontSize: "12px",
+              color: "#9ca3af",
+              fontFamily:
+                "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            }}
+          >
+            Press Enter to send
+          </div>
         </div>
       </div>
     </div>

@@ -12,6 +12,7 @@ import AgentAvatar from "../agents/AgentAvatar";
 import CopyButton from "../common/CopyButton";
 import { formatTimestamp, getTimestampFromId } from "../../utils/time";
 import { Button, CheckIcon, WrenchIcon } from "@databricks/design-system";
+import ReadOnlyCodeBlock from "../common/ReadOnlyCodeBlock";
 
 // TextRenderer Component
 interface TextRendererProps {
@@ -103,7 +104,16 @@ const TextRenderer = ({ content, isUser = false }: TextRendererProps) => {
   }
 
   return (
-    <div style={{ fontSize: "14px", color: isUser ? "white" : "#111827" }}>
+    <div
+      style={{
+        fontSize: "14px",
+        lineHeight: "1.5",
+        color: isUser ? "white" : "#111827",
+        fontFamily:
+          "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontWeight: "400",
+      }}
+    >
       {renderTextWithAnnotations(displayText)}
     </div>
   );
@@ -171,53 +181,20 @@ const ToolCallRenderer = ({ toolCall }: ToolCallRendererProps) => {
       </div>
 
       {/* Code block */}
-      <div
-        style={{
-          backgroundColor: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
-        {/* Language header */}
-        <div
-          style={{
-            padding: "8px 12px",
-            backgroundColor: "#f1f5f9",
-            borderBottom: "1px solid #e2e8f0",
-            fontSize: "12px",
-            color: "#64748b",
-            fontWeight: "500",
-          }}
-        >
-          Python
-        </div>
-
-        {/* Code content */}
-        <pre
-          style={{
-            margin: 0,
-            padding: "16px",
-            fontSize: "14px",
-            lineHeight: "1.5",
-            fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', monospace",
-            color: "#1e293b",
-            backgroundColor: "transparent",
-            overflow: "auto",
-          }}
-        >
-          {(() => {
-            try {
-              const args = JSON.parse(toolCall.arguments);
-              return Object.entries(args)
-                .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
-                .join("\n");
-            } catch {
-              return toolCall.arguments;
-            }
-          })()}
-        </pre>
-      </div>
+      <ReadOnlyCodeBlock
+        code={(() => {
+          try {
+            const args = JSON.parse(toolCall.arguments);
+            return Object.entries(args)
+              .map(([key, value]) => `${key} = ${JSON.stringify(value)}`)
+              .join("\n");
+          } catch {
+            return toolCall.arguments;
+          }
+        })()}
+        language="Python"
+        title={`system.ai.${toolCall.name}`}
+      />
     </div>
   );
 };
@@ -250,30 +227,11 @@ const ToolCallOutputRenderer = ({ output }: ToolCallOutputRendererProps) => {
       </div>
 
       {/* Output content */}
-      <div
-        style={{
-          backgroundColor: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
-        <pre
-          style={{
-            margin: 0,
-            padding: "16px",
-            fontSize: "14px",
-            lineHeight: "1.5",
-            fontFamily: "Monaco, 'Cascadia Code', 'Roboto Mono', monospace",
-            color: "#1e293b",
-            backgroundColor: "transparent",
-            whiteSpace: "pre-wrap",
-            overflow: "auto",
-          }}
-        >
-          {output.output}
-        </pre>
-      </div>
+      <ReadOnlyCodeBlock
+        code={output.output}
+        language="Output"
+        title="Tool Result"
+      />
     </div>
   );
 };
@@ -323,24 +281,16 @@ const ReasoningRenderer = ({ reasoning }: ReasoningRendererProps) => {
         <div style={{ fontWeight: "500" }}>{reasoning.summary}</div>
 
         {isExpanded && reasoning.content && (
-          <div
-            style={{
-              marginTop: "8px",
-              padding: "8px",
-              backgroundColor: "white",
-              borderRadius: "4px",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <pre
+          <div style={{ marginTop: "8px" }}>
+            <ReadOnlyCodeBlock
+              code={reasoning.content}
+              language="Reasoning"
+              showLanguageHeader={false}
               style={{
-                whiteSpace: "pre-wrap",
                 fontSize: "12px",
-                color: "#374151",
+                maxHeight: "200px",
               }}
-            >
-              {reasoning.content}
-            </pre>
+            />
           </div>
         )}
       </div>
@@ -551,7 +501,14 @@ const ResponseRenderer = ({ item }: ResponseRendererProps) => {
             borderRadius: "8px",
           }}
         >
-          <p style={{ fontSize: "14px", color: "#6b7280" }}>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "#6b7280",
+              fontFamily:
+                "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            }}
+          >
             Unknown message type
           </p>
         </div>

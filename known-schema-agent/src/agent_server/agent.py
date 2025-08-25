@@ -69,8 +69,8 @@ TOOL_INFOS = []
 
 # You can use UDFs in Unity Catalog as agent tools
 # TODO: Add additional tools
-# UC_TOOL_NAMES = ["system.ai.python_exec"]
-UC_TOOL_NAMES = []
+UC_TOOL_NAMES = ["system.ai.python_exec"]
+# UC_TOOL_NAMES = []
 
 uc_toolkit = UCFunctionToolkit(function_names=UC_TOOL_NAMES)
 uc_function_client = get_uc_function_client()
