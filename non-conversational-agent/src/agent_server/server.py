@@ -1,16 +1,20 @@
+import argparse
 import inspect
 import json
 import logging
 import time
 from dataclasses import asdict, is_dataclass
+from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Type
 
 import mlflow
-import mlflow.tracing
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.tracing.trace_manager import InMemoryTraceManager
+from mlflow.types.llm import ChatCompletionChunk, ChatCompletionResponse, ChatMessage
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -20,6 +24,7 @@ from pydantic import BaseModel
 
 _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
+AgentType = Literal["agent/v1/responses", "agent/v1/chat"]
 
 
 def invoke() -> Callable:
@@ -48,7 +53,75 @@ def stream() -> Callable:
     return decorator
 
 
-AgentType = Literal["agent/v1/responses"]
+class AgentValidator:
+    def __init__(self, agent_type: Optional[AgentType] = None):
+        self.agent_type = agent_type
+        self.logger = logging.getLogger(__name__)
+
+    def validate_pydantic(self, pydantic_class: Type[BaseModel], data: Any) -> None:
+        """Generic pydantic validator that throws an error if the data is invalid"""
+        if isinstance(data, pydantic_class):
+            return
+        try:
+            pydantic_class(**data)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid data for {pydantic_class.__name__} (agent_type: {self.agent_type}): {e}"
+            )
+
+    def validate_dataclass(self, dataclass_class: Any, data: Any) -> None:
+        """Generic dataclass validator that throws an error if the data is invalid"""
+        if isinstance(data, dataclass_class):
+            return
+        try:
+            dataclass_class(**data)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid data for {dataclass_class.__name__} (agent_type: {self.agent_type}): {e}"
+            )
+
+    def validate_request(self, data: dict) -> None:
+        """Validate request parameters based on agent type"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentRequest, data)
+        elif self.agent_type == "agent/v1/chat":
+            for msg in data.get("messages", []):
+                self.validate_dataclass(ChatMessage, msg)
+        # TODO: add additional validation for different agent types
+
+    def validate_invoke_response(self, result: Any) -> None:
+        """Validate the invoke response"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentResponse, result)
+        elif self.agent_type == "agent/v1/chat":
+            self.validate_dataclass(ChatCompletionResponse, result)
+        # TODO: add additional validation for different agent types
+
+    def validate_stream_response(self, result: Any) -> None:
+        """Validate a stream event for agent/v1/responses (ResponsesAgent)"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentStreamEvent, result)
+        elif self.agent_type == "agent/v1/chat":
+            self.validate_dataclass(ChatCompletionChunk, result)
+        # TODO: add additional validation for different agent types
+
+    def validate_and_convert_result(self, result: Any, stream: bool = False) -> dict:
+        """Validate and convert the result into a dictionary if necessary"""
+        if stream:
+            self.validate_stream_response(result)
+        else:
+            self.validate_invoke_response(result)
+
+        if isinstance(result, BaseModel):
+            return result.model_dump(exclude_none=True)
+        elif is_dataclass(result):
+            return asdict(result)
+        elif isinstance(result, dict):
+            return result
+        else:
+            raise ValueError(
+                f"Result needs to be a pydantic model, dataclass, or dict. Unsupported result type: {type(result)}, result: {result}"
+            )
 
 
 class AgentServer:
@@ -56,8 +129,45 @@ class AgentServer:
         self.agent_type = agent_type
         self.validator = AgentValidator(agent_type)
         self.app = FastAPI(title="Agent Server", version="0.0.1")
+
+        # Add CORS middleware to allow frontend connections
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
         self.logger = logging.getLogger(__name__)
+        self._setup_static_files()
         self._setup_routes()
+
+    def _setup_static_files(self) -> None:
+        """Setup static file serving for the UI"""
+        # Get the path to the UI build folder relative to the server location
+        ui_dist_path = Path(__file__).parent.parent.parent / "ui/static"
+
+        if ui_dist_path.exists():
+            # Mount the static assets
+            self.app.mount(
+                "/assets", StaticFiles(directory=str(ui_dist_path / "assets")), name="assets"
+            )
+
+            # Serve the main index.html at root and catch-all routes for React Router
+            from fastapi.responses import FileResponse
+
+            @self.app.get("/")
+            async def serve_ui():
+                return FileResponse(str(ui_dist_path / "index.html"))
+
+            @self.app.get("/databricks.svg")
+            async def serve_databricks_svg():
+                return FileResponse(str(ui_dist_path / "databricks.svg"))
+        else:
+            self.logger.warning(
+                f"UI dist folder not found at {ui_dist_path}. UI will not be served."
+            )
 
     @staticmethod
     def _get_databricks_output(trace_id: str) -> dict:
@@ -107,7 +217,14 @@ class AgentServer:
             else:
                 return await self._handle_invoke_request(request_data, start_time, return_trace)
 
-    async def _handle_invoke_request(self, data: dict, start_time: float, return_trace: bool) -> dict:
+        @self.app.get("/health")
+        async def health_check() -> dict:
+            """Health check endpoint for frontend connection testing"""
+            return {"status": "healthy", "server": "agent-server", "version": "0.0.1"}
+
+    async def _handle_invoke_request(
+        self, data: dict, start_time: float, return_trace: bool
+    ) -> dict:
         """Handle non-streaming invoke requests"""
         # Use the single invoke function
         if _invoke_function is None:
@@ -166,7 +283,9 @@ class AgentServer:
 
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def _handle_stream_request(self, data: dict, start_time: float, return_trace: bool) -> StreamingResponse:
+    async def _handle_stream_request(
+        self, data: dict, start_time: float, return_trace: bool
+    ) -> StreamingResponse:
         """Handle streaming requests"""
         # Use the single stream function
         if _stream_function is None:
@@ -240,68 +359,43 @@ class AgentServer:
                 )
 
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                yield "data: [DONE]\n\n"
 
         return StreamingResponse(generate(), media_type="text/event-stream")
 
-    def run(self, host: str = "0.0.0.0", port: int = 8000) -> None:
+    def set_agent_type(self, agent_type: AgentType) -> None:
+        self.agent_type = agent_type
+        self.validator = AgentValidator(agent_type)
+
+    def run(
+        self,
+        app_import_string: str,
+        host: str = "0.0.0.0",
+        port: int = 8000,
+        workers: int = 1,
+        reload: bool = False,
+    ) -> None:
         import uvicorn
 
-        uvicorn.run(self.app, host=host, port=port)
+        uvicorn.run(app_import_string, host=host, port=port, workers=workers, reload=reload)
 
 
-class AgentValidator:
-    def __init__(self, agent_type: Optional[AgentType] = None):
-        self.agent_type = agent_type
-        self.logger = logging.getLogger(__name__)
-
-    def validate_pydantic(self, pydantic_class: Type[BaseModel], data: Any) -> None:
-        """Generic pydantic validator that throws an error if the data is invalid"""
-        if isinstance(data, pydantic_class):
-            return
-        try:
-            pydantic_class(**data)
-        except Exception as e:
-            raise ValueError(
-                f"Invalid data for {pydantic_class.__name__} (agent_type: {self.agent_type}): {e}"
-            )
-
-    def validate_invoke_response(self, result: Any) -> None:
-        """Validate the invoke response"""
-        if self.agent_type == "agent/v1/responses":
-            self.validate_pydantic(ResponsesAgentResponse, result)
-        # TODO: add additional validation for different agent types
-
-    def validate_stream_response(self, result: Any) -> None:
-        """Validate a stream event for agent/v1/responses (ResponsesAgent)"""
-        if self.agent_type == "agent/v1/responses":
-            self.validate_pydantic(ResponsesAgentStreamEvent, result)
-        # TODO: add additional validation for different agent types
-
-    def validate_request(self, data: dict) -> None:
-        """Validate request parameters based on agent type"""
-        if self.agent_type == "agent/v1/responses":
-            self.validate_pydantic(ResponsesAgentRequest, data)
-        # TODO: add additional validation for different agent types
-
-    def validate_and_convert_result(self, result: Any, stream: bool = False) -> dict:
-        """Validate and convert the result into a dictionary if necessary"""
-        if stream:
-            self.validate_stream_response(result)
-        else:
-            self.validate_invoke_response(result)
-
-        if isinstance(result, BaseModel):
-            return result.model_dump(exclude_none=True)
-        elif is_dataclass(result):
-            return asdict(result)
-        elif isinstance(result, dict):
-            return result
-        else:
-            raise ValueError(
-                f"Result needs to be a pydantic model, dataclass, or dict. Unsupported result type: {type(result)}, result: {result}"
-            )
+def parse_server_args():
+    """Parse command line arguments for the agent server"""
+    parser = argparse.ArgumentParser(description="Start the agent server")
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Port to run the server on (default: 8000)"
+    )
+    parser.add_argument(
+        "--workers", type=int, default=1, help="Number of workers to run the server on (default: 1)"
+    )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Reload the server on code changes (default: False)",
+    )
+    return parser.parse_args()
 
 
-# Factory function to create server with specific agent type
 def create_server(agent_type: Optional[AgentType] = None) -> AgentServer:
     return AgentServer(agent_type)

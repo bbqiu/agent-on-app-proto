@@ -7,7 +7,7 @@ import mlflow
 def _configure_mlflow_tracking() -> None:
     """
     Configure MLflow tracking URI with robust authentication that works both locally and on Databricks Apps.
-    
+
     Priority order:
     1. If DATABRICKS_HOST and DATABRICKS_TOKEN are set, use them directly
     2. If running on Databricks Apps (DATABRICKS_APP_NAME exists), use "databricks" URI
@@ -17,19 +17,21 @@ def _configure_mlflow_tracking() -> None:
     # Check if explicit host and token are provided (most reliable method)
     databricks_host = os.getenv("DATABRICKS_HOST")
     databricks_token = os.getenv("DATABRICKS_TOKEN")
-    
+
     if databricks_host and databricks_token:
-        print(f"Using explicit DATABRICKS_HOST and DATABRICKS_TOKEN for authentication")
+        print("Using explicit DATABRICKS_HOST and DATABRICKS_TOKEN for authentication")
         mlflow.set_tracking_uri("databricks")
         return
-    
+
     # Check if we're running in Databricks Apps environment
     app_name = os.getenv("DATABRICKS_APP_NAME")
     if app_name:
-        print(f"Running in Databricks Apps environment (app: {app_name}), using default authentication")
+        print(
+            f"Running in Databricks Apps environment (app: {app_name}), using default authentication"
+        )
         mlflow.set_tracking_uri("databricks")
         return
-    
+
     # Try profile-based authentication for local development
     profile = os.getenv("DATABRICKS_CONFIG_PROFILE")
     if profile:
@@ -43,25 +45,27 @@ def _configure_mlflow_tracking() -> None:
         except Exception as e:
             print(f"Failed to use profile '{profile}': {e}")
             print("Falling back to default authentication")
-    
+
     # Final fallback: use default "databricks" URI
     print("Using default Databricks authentication (relies on environment or default profile)")
     mlflow.set_tracking_uri("databricks")
 
 
-def setup_mlflow() -> None:
+def setup_mlflow(*, register_model_to_uc: bool = False) -> None:
     """Initialize MLflow tracking and set active model."""
-    experiment_name = None
-    assert experiment_name is not None, "You must set an experiment name "
+    experiment_id = os.getenv("MLFLOW_EXPERIMENT_ID")
+    assert experiment_id is not None, (
+        "You must set MLFLOW_EXPERIMENT_ID in your environment to enable MLflow git-based logging and real time tracing. Refer to the README for more info."
+    )
 
     # Configure MLflow tracking URI with robust authentication
     _configure_mlflow_tracking()
-    mlflow.set_experiment(experiment_name)
+    mlflow.set_experiment(experiment_id=experiment_id)
 
     # in a Databricks App, the app name is set in the environment variable DATABRICKS_APP_NAME
     # in local development, we use a fallback app name
     # TODO: add a fallback app name
-    app_name = os.getenv("DATABRICKS_APP_NAME", "FALLBACK-LOCAL-APP-NAME")
+    app_name = os.getenv("DATABRICKS_APP_NAME", "local-dev")
 
     # Get current git commit hash for versioning
     try:
@@ -78,3 +82,16 @@ def setup_mlflow() -> None:
     print(
         f"Active LoggedModel: '{active_model_info.name}', Model ID: '{active_model_info.model_id}'"
     )
+
+    if register_model_to_uc:
+        mlflow.set_registry_uri(os.getenv("MLFLOW_REGISTRY_URI"))
+        # TODO: fill in the catalog, schema, and model name for the UC model
+        catalog = "main"
+        schema = "default"
+        model_name = ""
+        assert model_name, "Please set the catalog, schema, and model name for the UC model"
+        UC_MODEL_NAME = f"{catalog}.{schema}.{model_name}"
+        uc_registered_model_info = mlflow.register_model(
+            model_uri=active_model_info.model_uri, name=UC_MODEL_NAME
+        )
+        print(f"Registered model to UC: {uc_registered_model_info}")
