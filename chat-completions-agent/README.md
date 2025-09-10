@@ -1,6 +1,6 @@
 # Chat Completions Agent
 
-This example is a simple chat-only agent that follows the [OpenAI Chat Completions API](https://platform.openai.com/docs/api-reference/chat/completions).
+This example is a simple chat-only langchain agent that follows the [OpenAI Chat Completions API](https://platform.openai.com/docs/api-reference/chat/completions).
 
 Refer to [the ChatModel MLflow docs](https://mlflow.org/docs/latest/genai/flavors/chat-model-guide/) for more about input and output formats for streaming and non-streaming requests, tracing requirements, and other agent authoring details.
 
@@ -127,19 +127,19 @@ Start up the agent server locally:
 uv run agent-server --reload
 ```
 
-Now you can either query your agent via the built in UI (served by default at https://localhost:8000) or via REST API request:
+Now you can query your agent via REST API request:
 
 - Example streaming request:
   ```bash
   curl -X POST http://localhost:8000/invocations \
    -H "Content-Type: application/json" \
-   -d '{ "input": [{ "role": "user", "content": "hi" }], "stream": true }'
+   -d '{ "messages": [{ "role": "user", "content": "hi" }], "stream": true }'
   ```
 - Example non-streaming request:
   ```bash
   curl -X POST http://localhost:8000/invocations  \
    -H "Content-Type: application/json" \
-   -d '{ "input": [{ "role": "user", "content": "hi" }] }'
+   -d '{ "messages": [{ "role": "user", "content": "hi" }] }'
   ```
 
 ## Deploying to Databricks Apps
@@ -203,7 +203,7 @@ Now you can either query your agent via the built in UI (served by default at ht
      curl -X POST <app-url.databricksapps.com>/invocations \
         -H "Authorization: Bearer <oauth token>" \
         -H "Content-Type: application/json" \
-        -d '{ "input": [{ "role": "user", "content": "hi" }], "stream": true }'
+        -d '{ "messages": [{ "role": "user", "content": "hi" }], "stream": true }'
      ```
 
    - Example non-streaming request:
@@ -212,7 +212,7 @@ Now you can either query your agent via the built in UI (served by default at ht
      curl -X POST <app-url.databricksapps.com>/invocations \
         -H "Authorization: Bearer <oauth token>" \
         -H "Content-Type: application/json" \
-        -d '{ "input": [{ "role": "user", "content": "hi" }] }'
+        -d '{ "messages": [{ "role": "user", "content": "hi" }] }'
      ```
 
 For future updates to the agent, you only need to sync and redeploy your agent.

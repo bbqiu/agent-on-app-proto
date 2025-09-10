@@ -1,5 +1,5 @@
 from operator import itemgetter
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, AsyncIterator
 
 import mlflow
 from databricks_langchain import ChatDatabricks
@@ -7,9 +7,26 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableLambda
 from mlflow.langchain.output_parsers import ChatCompletionOutputParser
+from mlflow.types.llm import ChatChoiceDelta, ChatChunkChoice, ChatCompletionChunk
 
 from agent_server.mlflow_config import setup_mlflow
 from agent_server.server import create_server, invoke, parse_server_args, stream
+
+
+# Will add to MLflow in next release
+# PR:https://github.com/mlflow/mlflow/pull/17627
+class CustomChatCompletionOutputParser(ChatCompletionOutputParser):
+    async def atransform(
+        self,
+        input: AsyncIterator[BaseMessage],
+        config: Any,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        async for chunk in input:
+            yield ChatCompletionChunk(
+                choices=[ChatChunkChoice(delta=ChatChoiceDelta(content=chunk.content))]
+            ).to_dict()
+
 
 # Enable MLflow tracing
 mlflow.langchain.autolog()
@@ -34,7 +51,7 @@ chain = (
     }
     | prompt
     | llm
-    | ChatCompletionOutputParser()
+    | CustomChatCompletionOutputParser()
 )
 
 
@@ -57,7 +74,7 @@ async def stream(
 # Required components to start the server #
 ###########################################
 
-agent_server = create_server("agent/v1/responses")
+agent_server = create_server("agent/v1/chat")
 app = agent_server.app
 
 

@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.tracing.trace_manager import InMemoryTraceManager
+from mlflow.types.llm import ChatCompletionChunk, ChatCompletionResponse, ChatMessage
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -23,7 +24,7 @@ from pydantic import BaseModel
 
 _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
-AgentType = Literal["agent/v1/responses"]
+AgentType = Literal["agent/v1/responses", "agent/v1/chat"]
 
 
 def invoke() -> Callable:
@@ -68,22 +69,40 @@ class AgentValidator:
                 f"Invalid data for {pydantic_class.__name__} (agent_type: {self.agent_type}): {e}"
             )
 
+    def validate_dataclass(self, dataclass_class: Any, data: Any) -> None:
+        """Generic dataclass validator that throws an error if the data is invalid"""
+        if isinstance(data, dataclass_class):
+            return
+        try:
+            dataclass_class(**data)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid data for {dataclass_class.__name__} (agent_type: {self.agent_type}): {e}"
+            )
+
+    def validate_request(self, data: dict) -> None:
+        """Validate request parameters based on agent type"""
+        if self.agent_type == "agent/v1/responses":
+            self.validate_pydantic(ResponsesAgentRequest, data)
+        elif self.agent_type == "agent/v1/chat":
+            for msg in data.get("messages", []):
+                self.validate_dataclass(ChatMessage, msg)
+        # TODO: add additional validation for different agent types
+
     def validate_invoke_response(self, result: Any) -> None:
         """Validate the invoke response"""
         if self.agent_type == "agent/v1/responses":
             self.validate_pydantic(ResponsesAgentResponse, result)
+        elif self.agent_type == "agent/v1/chat":
+            self.validate_dataclass(ChatCompletionResponse, result)
         # TODO: add additional validation for different agent types
 
     def validate_stream_response(self, result: Any) -> None:
         """Validate a stream event for agent/v1/responses (ResponsesAgent)"""
         if self.agent_type == "agent/v1/responses":
             self.validate_pydantic(ResponsesAgentStreamEvent, result)
-        # TODO: add additional validation for different agent types
-
-    def validate_request(self, data: dict) -> None:
-        """Validate request parameters based on agent type"""
-        if self.agent_type == "agent/v1/responses":
-            self.validate_pydantic(ResponsesAgentRequest, data)
+        elif self.agent_type == "agent/v1/chat":
+            self.validate_dataclass(ChatCompletionChunk, result)
         # TODO: add additional validation for different agent types
 
     def validate_and_convert_result(self, result: Any, stream: bool = False) -> dict:
