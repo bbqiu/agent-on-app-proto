@@ -1,6 +1,6 @@
 # Agents on Apps
 
-The Databricks Agent Platform team is protoyping the development experience of deploying Agents on Databricks Apps instead of Databricks Model Serving.
+The Databricks Agent Platform team is prototyping the development experience of deploying Agents on Databricks Apps instead of Databricks Model Serving.
 
 By deploying agents on Databricks Apps instead of Model Serving, you can:
 

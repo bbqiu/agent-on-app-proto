@@ -144,7 +144,7 @@ Build the UI and start up the agent server locally:
 uv run agent-server --reload
 ```
 
-Now you can either query your agent via the built in UI (served by default at https://localhost:8000) or via REST API request:
+Now you can either query your agent via the built in UI (served by default at http://localhost:8000) or via REST API request:
 
 - Example streaming request:
   ```bash

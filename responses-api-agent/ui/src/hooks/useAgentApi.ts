@@ -63,7 +63,6 @@ export const useStreamingChat = () => {
             console.log("abortController.signal.aborted");
             break;
           }
-          console.log("chunk", chunk);
 
           // TODO: handle parsing the chunk?
           // need a separate internal state + state that is used for rendering?
