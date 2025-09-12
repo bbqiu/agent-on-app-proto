@@ -246,6 +246,8 @@ class AgentServer:
                 result = self.validator.validate_and_convert_result(result)
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
+                if self.agent_type == "agent/v1/responses":
+                    span.set_attribute("mlflow.message.format", "openai")
                 span.set_outputs(result)
 
                 if return_trace:
@@ -318,10 +320,9 @@ class AgentServer:
                     duration = round(time.time() - start_time, 2)
                     span.set_attribute("duration_ms", duration)
                     if self.agent_type == "agent/v1/responses":
+                        span.set_attribute("mlflow.message.format", "openai")
                         span.set_outputs(ResponsesAgent.responses_agent_output_reducer(all_chunks))
                     elif self.agent_type == "agent/v1/chat":
-                        span.set_attribute("mlflow.spanType", "CHAT_MODEL")
-                        span.set_attribute("mlflow.message.format", "openai")
 
                         def _extract_content(chunk: ChatCompletionChunk | dict) -> str:
                             if isinstance(chunk, dict):
@@ -332,16 +333,8 @@ class AgentServer:
                                 return ""
                             return chunk.choices[0].delta.content or ""
 
-                        span.set_outputs(
-                            {
-                                "choices": [
-                                    {
-                                        "role": "assistant",
-                                        "content": "".join(map(_extract_content, all_chunks)),
-                                    }
-                                ]
-                            }
-                        )
+                        content = "".join(map(_extract_content, all_chunks))
+                        span.set_outputs({"choices": [{"role": "assistant", "content": content}]})
                     # TODO: add additional streaming output reducers for different agent types
                     else:
                         span.set_outputs(all_chunks)

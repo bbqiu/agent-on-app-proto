@@ -247,9 +247,7 @@ class AgentServer:
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
                 if self.agent_type == "agent/v1/responses":
-                    print("setting attribute")
                     span.set_attribute("mlflow.message.format", "openai")
-                    span.set_attribute("mlflow.spanType", "CHAT_MODEL")
                 span.set_outputs(result)
 
                 if return_trace:
@@ -323,7 +321,6 @@ class AgentServer:
                     span.set_attribute("duration_ms", duration)
                     if self.agent_type == "agent/v1/responses":
                         span.set_attribute("mlflow.message.format", "openai")
-                        print("setting attribute")
                         span.set_outputs(ResponsesAgent.responses_agent_output_reducer(all_chunks))
                     elif self.agent_type == "agent/v1/chat":
 
