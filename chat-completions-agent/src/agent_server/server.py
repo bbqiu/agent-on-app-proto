@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from mlflow.openai.autolog import _reconstruct_completion_from_stream
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.tracing.trace_manager import InMemoryTraceManager
 from mlflow.types.llm import ChatCompletionChunk, ChatCompletionResponse, ChatMessage
@@ -318,6 +319,29 @@ class AgentServer:
                     span.set_attribute("duration_ms", duration)
                     if self.agent_type == "agent/v1/responses":
                         span.set_outputs(ResponsesAgent.responses_agent_output_reducer(all_chunks))
+                    elif self.agent_type == "agent/v1/chat":
+                        span.set_attribute("mlflow.spanType", "CHAT_MODEL")
+                        span.set_attribute("mlflow.message.format", "openai")
+
+                        def _extract_content(chunk: ChatCompletionChunk | dict) -> str:
+                            if isinstance(chunk, dict):
+                                return (
+                                    chunk.get("choices", [])[0].get("delta", {}).get("content", "")
+                                )
+                            if not chunk.choices:
+                                return ""
+                            return chunk.choices[0].delta.content or ""
+
+                        span.set_outputs(
+                            {
+                                "choices": [
+                                    {
+                                        "role": "assistant",
+                                        "content": "".join(map(_extract_content, all_chunks)),
+                                    }
+                                ]
+                            }
+                        )
                     # TODO: add additional streaming output reducers for different agent types
                     else:
                         span.set_outputs(all_chunks)

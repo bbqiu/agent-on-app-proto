@@ -28,12 +28,9 @@ class CustomChatCompletionOutputParser(ChatCompletionOutputParser):
             ).to_dict()
 
 
-# Enable MLflow tracing
 mlflow.langchain.autolog()
-
 llm = ChatDatabricks(model="databricks-claude-sonnet-4")
 
-# Define components
 prompt = ChatPromptTemplate.from_template(
     """Previous conversation:
 {chat_history}
@@ -42,7 +39,6 @@ User's question:
 {question}"""
 )
 
-# Chain definition
 chain = (
     {
         "question": itemgetter("messages")
@@ -55,7 +51,6 @@ chain = (
 )
 
 
-# Example for ResponsesAgent
 @invoke()
 async def invoke(messages: list[BaseMessage]) -> BaseMessage:
     """Responses agent predict function - expects inputs format."""
