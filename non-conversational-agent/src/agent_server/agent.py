@@ -1,84 +1,277 @@
-from operator import itemgetter
-from typing import Any, AsyncGenerator, AsyncIterator
+"""Non-conversational agent for document analysis using MLflow model serving."""
 
+import json
+import logging
+from typing import Optional
+import os
+
+from databricks.sdk import WorkspaceClient
 import mlflow
-from databricks_langchain import ChatDatabricks
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.messages import BaseMessage
-from langchain_core.runnables import RunnableLambda
-from mlflow.langchain.output_parsers import ChatCompletionOutputParser
-from mlflow.types.llm import ChatChoiceDelta, ChatChunkChoice, ChatCompletionChunk
+from mlflow.pyfunc import PythonModel
+from mlflow.tracing import set_destination
+from mlflow.tracing.destination import Databricks
+from mlflow.entities import SpanType
+from pydantic import BaseModel, Field
 
 from agent_server.mlflow_config import setup_mlflow
-from agent_server.server import create_server, invoke, parse_server_args, stream
+from agent_server.server import create_server, invoke, parse_server_args
 
 
-# Will add to MLflow in next release
-# PR:https://github.com/mlflow/mlflow/pull/17627
-class CustomChatCompletionOutputParser(ChatCompletionOutputParser):
-    async def atransform(
-        self,
-        input: AsyncIterator[BaseMessage],
-        config: Any,
-        **kwargs: Any,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        async for chunk in input:
-            yield ChatCompletionChunk(
-                choices=[ChatChunkChoice(delta=ChatChoiceDelta(content=chunk.content))]
-            ).to_dict()
+class Question(BaseModel):
+    """Represents a question in the input."""
+
+    text: str = Field(..., description="Yes/no question about document content")
 
 
-# Enable MLflow tracing
-mlflow.langchain.autolog()
+class AgentInput(BaseModel):
+    """Input model for the document analyser agent."""
 
-llm = ChatDatabricks(model="databricks-claude-sonnet-4")
-
-# Define components
-prompt = ChatPromptTemplate.from_template(
-    """Previous conversation:
-{chat_history}
-
-User's question:
-{question}"""
-)
-
-# Chain definition
-chain = (
-    {
-        "question": itemgetter("messages")
-        | RunnableLambda(lambda messages: messages[-1]["content"]),
-        "chat_history": itemgetter("messages") | RunnableLambda(lambda messages: messages[:-1]),
-    }
-    | prompt
-    | llm
-    | CustomChatCompletionOutputParser()
-)
+    document_text: str = Field(..., description="The document text to analyze")
+    questions: list[Question] = Field(..., description="List of yes/no questions")
 
 
-# Example for ResponsesAgent
+class Answer(BaseModel):
+    """Represents a structured response from the LLM."""
+
+    answer: str = Field(..., description="Yes or No answer")
+    chain_of_thought: str = Field(..., description="Step-by-step reasoning for the answer")
+
+
+class AnalysisResult(BaseModel):
+    """Represents an analysis result in the output."""
+
+    question_text: str = Field(..., description="Original question text")
+    answer: str = Field(..., description="Yes or No answer")
+    chain_of_thought: str = Field(..., description="Step-by-step reasoning for the answer")
+    span_id: str | None = Field(None, description="MLflow span ID for this specific answer (None during offline evaluation)")
+
+
+class AgentOutput(BaseModel):
+    """Output model for the document analyser agent."""
+
+    results: list[AnalysisResult] = Field(..., description="List of analysis results")
+    trace_id: str | None = Field(None, description="MLflow trace ID for user feedback collection (None during offline evaluation)")
+
+
+class DocumentAnalyser(PythonModel):
+    """Non-conversational agent for document analysis using MLflow model serving.
+    
+    Example use case: 
+        The agent processes structured questions about financial document 
+        content and provides yes/no answers with reasoning. Users provide both the document 
+        text and questions directly in the input, eliminating the need for vector search infrastructure 
+        in this simplified example. This demonstrates how non-conversational agents can handle specific, 
+        well-defined tasks without conversation context, while maintaining full traceability through MLflow 3.
+    
+    Real-world extensions: 
+        This simplified example can be easily extended for production use cases by integrating additional 
+        tools and capabilities. Examples include vector search for document retrieval, MCP (Model Context Protocol) 
+        tools for external integrations, or other Databricks agents like Genie for structured data access. 
+        The core MLflow tracing and monitoring patterns demonstrated here remain consistent regardless of 
+        the underlying system complexity.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the document analyser.
+
+        Sets up logging configuration, initializes model properties, and prepares
+        the model for serving.
+        """
+        self._setup_logging()
+        self.model_name = "document_analyser_v1"
+        self.logger.debug(f"Initialized {self.model_name}")
+
+    def _setup_logging(self) -> None:
+        """Set up logging configuration for Model Serving.
+
+        Configures a logger that uses stderr for better visibility in Model Serving
+        environments. Log level can be controlled via MODEL_LOG_LEVEL environment
+        variable (defaults to INFO).
+        """
+        self.logger = logging.getLogger("ModelLogger")
+        # Set log level from environment variable or default to INFO
+        log_level = os.getenv("MODEL_LOG_LEVEL", "INFO").upper()
+        self.logger.setLevel(getattr(logging, log_level, logging.INFO))
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setLevel(getattr(logging, log_level, logging.INFO))
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+
+    def load_context(self, context) -> None:
+        """Load model context and initialize clients.
+
+        This method is called once when the model is loaded in the serving environment.
+        It sets up MLflow tracing destination, initializes the Databricks workspace
+        client, and configures the OpenAI-compatible client for LLM inference.
+
+        Args:
+            context: MLflow model context containing artifacts and configuration
+        """
+        self.logger.debug("Loading model context")
+        set_destination(Databricks(experiment_id=os.getenv("MONITORING_EXPERIMENT_ID")))
+
+        self.logger.debug("Instantiate workspace client")
+        self.w = WorkspaceClient()
+        # You can load any artifacts here if needed
+        # self.artifacts = context.artifacts
+
+        self.logger.debug("Instantiate openai client")
+        # Get an OpenAI-compatible client configured for Databricks serving endpoints
+        self.openai_client = self.w.serving_endpoints.get_open_ai_client()
+
+    @mlflow.trace(name="answer_question", span_type=SpanType.LLM)
+    def answer_question(self, question_text: str, document_text: str) -> tuple[object, str | None]:
+        """Answer a question using LLM with structured response format.
+
+        Uses the OpenAI-compatible client to call a language model with a structured
+        JSON response format. The LLM analyzes the provided document text and returns
+        a yes/no answer with reasoning.
+
+        Args:
+            question_text (str): The yes/no question to answer about the document
+            document_text (str): The document text to analyze
+
+        Returns:
+            tuple: (openai.ChatCompletion, str|None) - LLM response and span_id
+        """
+        # Create a chat completion request with structured response for questions
+
+        question_prompt = f"""
+        You are a document analysis expert. Answer the following yes/no question based on the provided document.
+
+        Question: "{question_text}"
+
+        Document:
+        {document_text}
+
+        Analyze the document and provide a structured response.
+        """
+
+        # Create a separate sub-span for the actual OpenAI API call
+        llm_response = self._call_openai_completion(question_prompt)
+
+        # Get the current span ID for this specific answer
+        current_span = mlflow.get_current_active_span()
+        span_id = current_span.span_id if current_span is not None else None
+
+        return llm_response, span_id
+
+    @mlflow.trace(name="openai_completion", span_type=SpanType.LLM)
+    def _call_openai_completion(self, prompt: str):
+        """Make the actual OpenAI API call with its own sub-span.
+
+        Args:
+            prompt (str): The formatted prompt to send to the LLM
+
+        Returns:
+            OpenAI ChatCompletion response
+        """
+        return self.openai_client.chat.completions.create(
+            model=os.getenv("LLM_MODEL", "databricks-claude-3-7-sonnet"),  # Configurable LLM model
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "question_response",
+                    "schema": Answer.model_json_schema()
+                }
+            }
+        )
+
+    @mlflow.trace(name="document_analysis")
+    def predict(self, context, model_input: list[AgentInput]) -> list[AgentOutput]:
+        """Process document analysis questions with yes/no answers.
+
+        Args:
+            context: MLflow model context
+            model_input: List of structured inputs containing document text and questions
+
+        Returns:
+            List of AgentOutput with yes/no answers and reasoning
+        """
+        self.logger.debug(f"Processing {len(model_input)} classification request(s)")
+
+        # Get the current trace ID for user feedback collection
+        # Will be None during offline evaluation when no active span exists
+        current_span = mlflow.get_current_active_span()
+        trace_id = current_span.trace_id if current_span is not None else None
+
+        results = []
+        for input_data in model_input:
+            self.logger.debug(f"Number of questions: {len(input_data.questions)}")
+            self.logger.debug(f"Document length: {len(input_data.document_text)} characters")
+
+            analysis_results = []
+
+            for question in input_data.questions:
+                self.logger.debug(f"Processing question: {question.text}")
+
+                # Answer the question using LLM with structured response
+                llm_response, answer_span_id = self.answer_question(question.text, input_data.document_text)
+
+                # Parse structured JSON response
+                try:
+                    response_data = json.loads(llm_response.choices[0].message.content)
+                    answer_obj = Answer(**response_data)
+                except Exception as e:
+                    self.logger.debug(f"Failed to parse structured response: {e}")
+                    # Fallback to default response
+                    answer_obj = Answer(
+                        answer="No",
+                        chain_of_thought="Unable to process the question due to parsing error."
+                    )
+
+                analysis_results.append(AnalysisResult(
+                    question_text=question.text,
+                    answer=answer_obj.answer,
+                    chain_of_thought=answer_obj.chain_of_thought,
+                    span_id=answer_span_id
+                ))
+
+            self.logger.debug(f"Generated {len(analysis_results)} analysis results")
+
+            results.append(AgentOutput(
+                results=analysis_results,
+                trace_id=trace_id
+            ))
+
+        return results
+
+
+model = DocumentAnalyser()
+# Initialize the model context when running outside MLflow
+model.load_context(context=None)
+
+
 @invoke()
-async def invoke(messages: list[BaseMessage]) -> BaseMessage:
-    """Responses agent predict function - expects inputs format."""
-    return await chain.ainvoke(messages)
-
-
-@stream()
-async def stream(
-    messages: list[BaseMessage],
-) -> AsyncGenerator[BaseMessage, None]:
-    async for chunk in chain.astream(messages):
-        yield chunk
+async def invoke(data: dict) -> dict:
+    """Invoke function for the non-conversational agent."""
+    
+    # Convert input data to FinancialChecklistInput format
+    input_obj = AgentInput(**data)
+    result = model.predict(context=None, model_input=[input_obj])
+    
+    # Return the first result (since we only sent one input)
+    return result[0].model_dump()
 
 
 ###########################################
 # Required components to start the server #
 ###########################################
 
-agent_server = create_server("agent/v1/chat")
+agent_server = create_server(agent_type=None)
 app = agent_server.app
 
 
 def main():
+    
     args = parse_server_args()
 
     setup_mlflow()

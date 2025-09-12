@@ -9,9 +9,13 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.12",
-    "uvicorn>=0.34.2",
-    "mlflow-skinny[databricks]>=3.3.1",
+    "uvicorn[standard]>=0.34.2",
+    "mlflow>=3.2.0",
     "databricks-sdk>=0.63.0",
+    "databricks-langchain>=0.7.0",
+    "databricks-vectorsearch>=0.57.0",
+    "databricks-agents>=1.4.0",
+    "pydantic>=2.11",
 ]
 
 [build-system]
@@ -26,4 +30,4 @@ dev = [
 ]
 
 [project.scripts]
-agent-server = "agent-server.agent:main"
+agent-server = "agent_server.agent:main"
