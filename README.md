@@ -1,9 +1,8 @@
 # Agents on Apps
 
-The Databricks Agent Platform team is prototyping the development experience of deploying Agents on Databricks Apps instead of Databricks Model Serving.
+⚠️ The contents of this repo are experimental and subject to change without warning.
 
-[!WARNING]
-The contents of this repo are experimental and subject to change without warning.
+To address feedback from customers, especially those with a SWE background who prefer to develop agents using familiar tooling like git for versioning and IDEs for development, the agent framework team at Databricks is prototyping the development experience of deploying Agents on Databricks Apps instead of Databricks Model Serving.
 
 By deploying agents on Databricks Apps instead of Model Serving, you can:
 
