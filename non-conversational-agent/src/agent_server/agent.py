@@ -74,8 +74,7 @@ class DocumentAnalyser(PythonModel):
     def __init__(self) -> None:
         """Initialize the document analyser.
 
-        Sets up logging configuration, initializes model properties, and prepares
-        the model for serving.
+        Sets up model properties and prepares the model for serving.
         """
         self.model_name = "document_analyser_v1"
         self.logger = logging.getLogger(__name__)
@@ -228,9 +227,7 @@ app = agent_server.app
 
 
 def main():
-    
     args = parse_server_args()
-
     setup_mlflow()
     print(
         f"Single endpoint: POST /invocations on port {args.port} with {args.workers} workers and reload: {args.reload}"
