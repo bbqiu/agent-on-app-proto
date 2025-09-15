@@ -8,15 +8,14 @@ from typing import Dict, Any, Optional
 from urllib.parse import urlparse
 
 
-def get_databricks_oauth_token() -> Optional[str]:
+def get_databricks_oauth_token(profile: Optional[str] = None) -> Optional[str]:
     """Get OAuth token from Databricks CLI."""
     try:
-        result = subprocess.run(
-            ["databricks", "auth", "token"],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
+        cmd = ["databricks", "auth", "token"]
+        if profile:
+            cmd.extend(["--profile", profile])
+            
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode == 0:
             return json.loads(result.stdout).get("access_token")
     except:
@@ -30,13 +29,13 @@ def is_localhost(url: str) -> bool:
     return hostname in ["localhost", "127.0.0.1", "::1"]
 
 
-def test_agent(base_url: str = "http://localhost:8000") -> None:
+def test_agent(base_url: str = "http://localhost:8000", profile: Optional[str] = None) -> None:
     """Test the agent with a simple financial document question."""
     
     # Get token if needed
     token = None
     if not is_localhost(base_url):
-        token = get_databricks_oauth_token()
+        token = get_databricks_oauth_token(profile)
         if not token:
             print("❌ Failed to get OAuth token for remote endpoint")
             return
@@ -73,6 +72,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://localhost:8000", help="Agent URL")
+    parser.add_argument("--profile", help="Databricks CLI profile to use for authentication")
     args = parser.parse_args()
     
-    test_agent(args.url)
+    test_agent(args.url, args.profile)
