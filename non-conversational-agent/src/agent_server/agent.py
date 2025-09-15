@@ -77,34 +77,13 @@ class DocumentAnalyser(PythonModel):
         Sets up logging configuration, initializes model properties, and prepares
         the model for serving.
         """
-        self._setup_logging()
         self.model_name = "document_analyser_v1"
-        self.logger.debug(f"Initialized {self.model_name}")
+        self.logger = logging.getLogger(__name__)
 
         # set up workspace client and openai client
         self.w = WorkspaceClient()
         self.openai_client = self.w.serving_endpoints.get_open_ai_client()
-
-
-    def _setup_logging(self) -> None:
-        """Set up logging configuration for Model Serving.
-
-        Configures a logger that uses stderr for better visibility in Model Serving
-        environments. Log level can be controlled via MODEL_LOG_LEVEL environment
-        variable (defaults to INFO).
-        """
-        self.logger = logging.getLogger("ModelLogger")
-        # Set log level from environment variable or default to INFO
-        log_level = os.getenv("MODEL_LOG_LEVEL", "INFO").upper()
-        self.logger.setLevel(getattr(logging, log_level, logging.INFO))
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            handler.setLevel(getattr(logging, log_level, logging.INFO))
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
         
-
     @mlflow.trace(name="answer_question", span_type=SpanType.LLM)
     def answer_question(self, question_text: str, document_text: str) -> tuple[object, str | None]:
         """Answer a question using LLM with structured response format.
@@ -180,7 +159,7 @@ class DocumentAnalyser(PythonModel):
         Returns:
             List of AgentOutput with yes/no answers and reasoning
         """
-        self.logger.debug(f"Processing {len(model_input)} classification request(s)")
+        self.logger.info(f"Processing {len(model_input)} classification request(s)")
 
         # Get the current trace ID for user feedback collection
         # Will be None during offline evaluation when no active span exists
@@ -189,13 +168,10 @@ class DocumentAnalyser(PythonModel):
 
         results = []
         for input_data in model_input:
-            self.logger.debug(f"Number of questions: {len(input_data.questions)}")
-            self.logger.debug(f"Document length: {len(input_data.document_text)} characters")
 
             analysis_results = []
 
             for question in input_data.questions:
-                self.logger.debug(f"Processing question: {question.text}")
 
                 # Answer the question using LLM with structured response
                 llm_response, answer_span_id = self.answer_question(question.text, input_data.document_text)
@@ -205,7 +181,6 @@ class DocumentAnalyser(PythonModel):
                     response_data = json.loads(llm_response.choices[0].message.content)
                     answer_obj = Answer(**response_data)
                 except Exception as e:
-                    self.logger.debug(f"Failed to parse structured response: {e}")
                     # Fallback to default response
                     answer_obj = Answer(
                         answer="No",
@@ -219,7 +194,7 @@ class DocumentAnalyser(PythonModel):
                     span_id=answer_span_id
                 ))
 
-            self.logger.debug(f"Generated {len(analysis_results)} analysis results")
+            self.logger.info(f"Generated {len(analysis_results)} analysis results")
 
             results.append(AgentOutput(
                 results=analysis_results,
