@@ -81,6 +81,11 @@ class DocumentAnalyser(PythonModel):
         self.model_name = "document_analyser_v1"
         self.logger.debug(f"Initialized {self.model_name}")
 
+        # set up workspace client and openai client
+        self.w = WorkspaceClient()
+        self.openai_client = self.w.serving_endpoints.get_open_ai_client()
+
+
     def _setup_logging(self) -> None:
         """Set up logging configuration for Model Serving.
 
@@ -98,28 +103,7 @@ class DocumentAnalyser(PythonModel):
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
-
-    def load_context(self, context) -> None:
-        """Load model context and initialize clients.
-
-        This method is called once when the model is loaded in the serving environment.
-        It sets up MLflow tracing destination, initializes the Databricks workspace
-        client, and configures the OpenAI-compatible client for LLM inference.
-
-        Args:
-            context: MLflow model context containing artifacts and configuration
-        """
-        self.logger.debug("Loading model context")
-        set_destination(Databricks(experiment_id=os.getenv("MONITORING_EXPERIMENT_ID")))
-
-        self.logger.debug("Instantiate workspace client")
-        self.w = WorkspaceClient()
-        # You can load any artifacts here if needed
-        # self.artifacts = context.artifacts
-
-        self.logger.debug("Instantiate openai client")
-        # Get an OpenAI-compatible client configured for Databricks serving endpoints
-        self.openai_client = self.w.serving_endpoints.get_open_ai_client()
+        
 
     @mlflow.trace(name="answer_question", span_type=SpanType.LLM)
     def answer_question(self, question_text: str, document_text: str) -> tuple[object, str | None]:
@@ -246,8 +230,6 @@ class DocumentAnalyser(PythonModel):
 
 
 model = DocumentAnalyser()
-# Initialize the model context when running outside MLflow
-model.load_context(context=None)
 
 
 @invoke()
