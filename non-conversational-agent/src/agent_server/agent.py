@@ -2,14 +2,11 @@
 
 import json
 import logging
-from typing import Optional
 import os
 
 from databricks.sdk import WorkspaceClient
 import mlflow
 from mlflow.pyfunc import PythonModel
-from mlflow.tracing import set_destination
-from mlflow.tracing.destination import Databricks
 from mlflow.entities import SpanType
 from pydantic import BaseModel, Field
 
