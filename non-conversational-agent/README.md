@@ -46,7 +46,7 @@ In order to access Databricks resources from your local machine while developing
 
 ### Modifying your agent
 
-`agent.py` currently contains a very simple non-conversational document analysis agent. Please modify this file to create your custom non-converssational agent. In order to work with the agent server provided, inside of `agent.py`, we require you to:
+`agent.py` currently contains a very simple non-conversational document analysis agent. Please modify this file to create your custom non-conversational agent. In order to work with the agent server provided, inside of `agent.py`, we require you to:
 
 - Call `create_server()` in order to initialize the server.
 
