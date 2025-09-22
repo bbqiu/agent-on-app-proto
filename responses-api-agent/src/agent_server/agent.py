@@ -26,6 +26,7 @@ from agent_server.server import create_server, invoke, parse_server_args, stream
 ############################################
 # TODO: Replace with your model serving endpoint
 LLM_ENDPOINT_NAME = "databricks-claude-3-7-sonnet"
+# LLM_ENDPOINT_NAME = "databricks-meta-llama-3-3-70b-instruct"
 
 # TODO: Update with your system prompt
 SYSTEM_PROMPT = """
@@ -57,17 +58,12 @@ def create_tool_info(tool_spec, exec_fn_param: Optional[Callable] = None):
     Factory function to create ToolInfo objects from a given tool spec
     and (optionally) a custom execution function.
     """
-    # Remove 'strict' property, as Claude models do not support it in tool specs.
     tool_spec["function"].pop("strict", None)
     tool_name = tool_spec["function"]["name"]
-    # Converts tool name with double underscores to UDF dot notation.
     udf_name = tool_name.replace("__", ".")
 
-    # Define a wrapper that accepts kwargs for the UC tool call,
-    # then passes them to the UC tool execution client
     def exec_fn(**kwargs):
         function_result = uc_function_client.execute_function(udf_name, kwargs)
-        # Return error message if execution fails, result value if not.
         if function_result.error is not None:
             return function_result.error
         else:
@@ -76,7 +72,6 @@ def create_tool_info(tool_spec, exec_fn_param: Optional[Callable] = None):
     return ToolInfo(name=tool_name, spec=tool_spec, exec_fn=exec_fn_param or exec_fn)
 
 
-# List to store information about all tools available to the agent.
 TOOL_INFOS = []
 
 # UDFs in Unity Catalog can be exposed as agent tools.
@@ -198,7 +193,6 @@ class ToolCallingAgent(ResponsesAgent):
         yield from self.call_and_run_tools(messages=messages)
 
 
-# Log the model using MLflow
 mlflow.openai.autolog()
 AGENT = ToolCallingAgent(llm_endpoint=LLM_ENDPOINT_NAME, tools=TOOL_INFOS)
 
@@ -213,47 +207,6 @@ def predict_stream(
     request: dict,
 ) -> Generator[ResponsesAgentStreamEvent, None, None]:
     yield from AGENT.predict_stream(ResponsesAgentRequest(**request))
-
-
-# @invoke()
-# async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
-#     """Responses agent predict function - expects inputs format."""
-#     return {
-#         "output": [
-#             {
-#                 "type": "message",
-#                 "role": "assistant",
-#                 "id": "id",
-#                 "content": [{"type": "output_text", "text": "Hello, world!"}],
-#             },
-#         ],
-#     }
-
-
-# @stream()
-# async def stream(
-#     request: ResponsesAgentRequest,
-# ) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
-#     yield {
-#         "type": "response.output_item.done",
-#         "item": {
-#             "type": "message",
-#             "role": "assistant",
-#             "id": "id",
-#             "content": [{"type": "output_text", "text": "Hello, world!"}],
-#         },
-#     }
-#     await asyncio.sleep(0.5)
-
-#     yield {
-#         "type": "response.output_item.done",
-#         "item": {
-#             "type": "message",
-#             "role": "assistant",
-#             "id": "id",
-#             "content": [{"type": "output_text", "text": "Hello again!"}],
-#         },
-#     }
 
 
 ###########################################
