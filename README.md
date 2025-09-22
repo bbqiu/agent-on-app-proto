@@ -26,5 +26,4 @@ Please refer to each individual template's README.md for more details. The templ
 Click on each of the links below to see more details about each agent template:
 
 - [responses-api-agent](/responses-api-agent/README.md)
-- [chat-completions-agent](/chat-completions-agent/README.md)
-- 🚧 (IN PROGRESS) [non-conversational-agent](/non-conversational-agent/README.md)
+- [non-conversational-agent](/non-conversational-agent/README.md)
