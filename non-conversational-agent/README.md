@@ -146,6 +146,20 @@ curl -X POST http://localhost:8000/invocations \
   }'
 ```
 
+### Evaluating your agent
+
+Evaluate your agent by calling the invoke function you defined for the agent locally. 
+- Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers. 
+- Your evaluation dataset must match the predict function signature. The wrapper takes a single argument named `data`, so each row should use `{"inputs": {"data": {...}}}` and the inner dict must match `AgentInput` (ex `document_text`, `questions: [{"text": str}]`).
+
+Run the evaluation using:
+
+```bash
+python src/agent_server/evaluate_agent.py
+```
+
+After it completes, open the MLflow UI link for your experiment to inspect results.
+
 ## Deploying to Databricks Apps
 
 0. **Create a Databricks App**:
