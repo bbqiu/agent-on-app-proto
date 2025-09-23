@@ -159,6 +159,19 @@ Now you can either query your agent via the built in UI (served by default at ht
    -d '{ "input": [{ "role": "user", "content": "hi" }] }'
   ```
 
+### Evaluating your agent
+
+Evaluate your agent by calling the invoke function you defined for the agent locally. 
+- Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers. 
+
+Run the evaluation using:
+
+```bash
+python src/agent_server/evaluate_agent.py
+```
+
+After it completes, open the MLflow UI link for your experiment to inspect results.
+
 ## Deploying to Databricks Apps
 
 0. **Create a Databricks App**:
