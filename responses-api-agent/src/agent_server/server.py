@@ -40,6 +40,9 @@ def invoke() -> Callable:
 
     return decorator
 
+def get_invoke_function():
+    return _invoke_function
+
 
 def stream() -> Callable:
     """Decorator to register a function as a stream endpoint. Can only be used once."""
