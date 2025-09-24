@@ -27,10 +27,8 @@ def evaluate():
         invoke_fn is not None
     ), "No @invoke-registered function found. Ensure your predict function is decorated with @invoke()."
 
-    results = mlflow.genai.evaluate(
+    mlflow.genai.evaluate(
         data=eval_dataset,
         predict_fn=invoke_fn,
         scorers=[RelevanceToQuery(), Safety()],
     )
-    print(results)
-    print("✅ MLflow evaluation completed")
