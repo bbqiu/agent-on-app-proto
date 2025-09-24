@@ -164,10 +164,10 @@ Now you can either query your agent via the built in UI (served by default at ht
 Evaluate your agent by calling the invoke function you defined for the agent locally. 
 - Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers. 
 
-Run the evaluation using:
+Run the evaluation using the evaluation script:
 
 ```bash
-python src/agent_server/evaluate_agent.py
+uv run agent-evaluate
 ```
 
 After it completes, open the MLflow UI link for your experiment to inspect results.

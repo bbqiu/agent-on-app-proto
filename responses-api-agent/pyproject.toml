@@ -29,3 +29,4 @@ dev = [
 
 [project.scripts]
 agent-server = "agent_server.agent:main"
+agent-evaluate = "agent_server.evaluate_agent:evaluate"
