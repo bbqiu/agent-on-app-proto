@@ -27,6 +27,7 @@ eval_dataset = [
     },
 ]
 
+# Get the invoke function that was registered via @invoke decorator in your agent
 invoke_fn = get_invoke_function()
 
 def predict_fn(data: dict) -> dict:
