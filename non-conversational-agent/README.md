@@ -2,7 +2,6 @@
 
 This example is a non-conversational agent that processes structured financial document questions and provides yes/no answers with detailed reasoning. Users provide both the document text and questions directly in the input, eliminating the need for vector search infrastructure in this simplified example. This demonstrates how non-conversational agents can handle specific, well-defined tasks without conversation context, while maintaining full traceability through MLflow 3.
 
-
 ## Local Devloop
 
 ### Set up your local environment
@@ -205,12 +204,13 @@ curl -X POST http://localhost:8000/invocations \
    python test_agent.py --url <app-url.databricksapps.com> --token <oauth-token>
    ```
 
-   Or send a request manually to the `/invocations` endpoint. Databricks Apps are queryable via OAuth token. Hence, generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
+   Or send a request manually to the `/invocations` endpoint. Databricks Apps are _only_ queryable via OAuth token. You cannot use a PAT to query your agent. Generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
 
    ```bash
    databricks auth login --host <https://host.databricks.com>
    databricks auth token
    ```
+
    and send the request:
 
    ```bash
@@ -237,3 +237,5 @@ For future updates to the agent, you only need to sync and redeploy your agent.
   - Call `setup_mlflow(register_model_to_uc=True)` within the startup script in `main()` from `src/agent_server/agent.py`.
 - How does this differ from a conversational agent?
   - Non-conversational agents process discrete requests without maintaining conversation context. They use `agent_type=None` to bypass conversational validation and support flexible input/output formats for task-specific processing.
+- When querying my agent, I get a 302 error. What's going on?
+  - Please make sure you are using an OAuth token to query your agent. You cannot use a PAT to query your agent.

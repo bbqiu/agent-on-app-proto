@@ -211,7 +211,7 @@ Now you can either query your agent via the built in UI (served by default at ht
 
 6. **Query your agent hosted on Databricks Apps**
 
-   Databricks Apps are queryable via OAuth token. Generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
+   Databricks Apps are _only_ queryable via OAuth token. You cannot use a PAT to query your agent. Generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
 
    ```bash
    databricks auth login --host <https://host.databricks.com>
@@ -249,3 +249,5 @@ For future updates to the agent, you only need to sync and redeploy your agent. 
 - How do I register my logged model to the UC model registry?
   - Fill in the catalog, schema, and model name for your UC model in `setup_mlflow()` from `src/agent_server/mlflow_config.py`.
   - Call `setup_mlflow(register_model_to_uc=True)` within the startup script in `main()` from `src/agent_server/agent.py`.
+- When querying my agent, I get a 302 error. What's going on?
+  - Please make sure you are using an OAuth token to query your agent. You cannot use a PAT to query your agent.
