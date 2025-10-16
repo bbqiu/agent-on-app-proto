@@ -161,8 +161,9 @@ Now you can either query your agent via the built in UI (served by default at ht
 
 ### Evaluating your agent
 
-Evaluate your agent by calling the invoke function you defined for the agent locally. 
-- Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers. 
+Evaluate your agent by calling the invoke function you defined for the agent locally.
+
+- Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers.
 
 Run the evaluation using the evaluation script:
 
@@ -193,10 +194,12 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
    ```yml
    env:
-   - name: MLFLOW_TRACKING_URI
-      value: "databricks"
-   - name: MLFLOW_EXPERIMENT_ID
-      value: "1234567890"
+     - name: MLFLOW_TRACKING_URI
+       value: "databricks"
+     - name: MLFLOW_REGISTRY_URI
+       value: "databricks-uc"
+     - name: MLFLOW_EXPERIMENT_ID
+       value: "" # fill in with your experiment ID
    ```
 
 3. **Build the UI**
