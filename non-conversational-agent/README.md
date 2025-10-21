@@ -147,8 +147,9 @@ curl -X POST http://localhost:8000/invocations \
 
 ### Evaluating your agent
 
-Evaluate your agent by calling the invoke function you defined for the agent locally. 
-- Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers. 
+Evaluate your agent by calling the invoke function you defined for the agent locally.
+
+- Update your `evaluate_agent.py` file with the preferred evaluation dataset and scorers.
 - Your evaluation dataset must match the predict function signature. The wrapper takes a single argument named `data`, so each row should use `{"inputs": {"data": {...}}}` and the inner dict must match `AgentInput` (ex `document_text`, `questions: [{"text": str}]`).
 
 Run the evaluation using the evaluation script:
@@ -180,10 +181,12 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
    ```yml
    env:
-   - name: MLFLOW_TRACKING_URI
-      value: "databricks"
-   - name: MLFLOW_EXPERIMENT_ID
-      value: "1234567890"
+     - name: MLFLOW_TRACKING_URI
+       value: "databricks"
+     - name: MLFLOW_REGISTRY_URI
+       value: "databricks-uc"
+     - name: MLFLOW_EXPERIMENT_ID
+       value: "" # fill in with your experiment ID
    ```
 
 3. **Sync local files to your workspace**
