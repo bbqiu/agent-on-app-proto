@@ -18,6 +18,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 from unitycatalog.ai.core.base import get_uc_function_client
 
+from agent_server.headers import get_forwarded_access_token
 from agent_server.mlflow_config import setup_mlflow
 from agent_server.server import create_server, invoke, parse_server_args, stream
 
@@ -199,6 +200,7 @@ AGENT = ToolCallingAgent(llm_endpoint=LLM_ENDPOINT_NAME, tools=TOOL_INFOS)
 
 @invoke()
 def predict(request: dict) -> ResponsesAgentResponse:
+    token = get_forwarded_access_token()
     return AGENT.predict(ResponsesAgentRequest(**request))
 
 
@@ -206,6 +208,7 @@ def predict(request: dict) -> ResponsesAgentResponse:
 def predict_stream(
     request: dict,
 ) -> Generator[ResponsesAgentStreamEvent, None, None]:
+    token = get_forwarded_access_token()
     yield from AGENT.predict_stream(ResponsesAgentRequest(**request))
 
 

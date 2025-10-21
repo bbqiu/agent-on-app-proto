@@ -23,6 +23,8 @@ from mlflow.types.responses import (
 )
 from pydantic import BaseModel
 
+from agent_server.headers import set_request_headers
+
 _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
 AgentType = Literal["agent/v1/responses", "agent/v1/chat", "agent/v2/chat"]
@@ -39,6 +41,7 @@ def invoke() -> Callable:
         return func
 
     return decorator
+
 
 def get_invoke_function():
     return _invoke_function
@@ -180,6 +183,10 @@ class AgentServer:
     def _setup_routes(self) -> None:
         @self.app.post("/invocations")
         async def invocations_endpoint(request: Request):
+            # capture headers such as x-forwarded-access-token
+            # https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth?language=Streamlit#retrieve-user-authorization-credentials
+            set_request_headers(dict(request.headers))
+
             start_time = time.time()
 
             try:
