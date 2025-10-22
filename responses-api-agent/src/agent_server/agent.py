@@ -199,7 +199,6 @@ AGENT = ToolCallingAgent(llm_endpoint=LLM_ENDPOINT_NAME, tools=TOOL_INFOS)
 
 @invoke()
 def predict(request: dict) -> ResponsesAgentResponse:
-    token = get_forwarded_access_token()
     return AGENT.predict(ResponsesAgentRequest(**request))
 
 
@@ -207,7 +206,6 @@ def predict(request: dict) -> ResponsesAgentResponse:
 def predict_stream(
     request: dict,
 ) -> Generator[ResponsesAgentStreamEvent, None, None]:
-    token = get_forwarded_access_token()
     yield from AGENT.predict_stream(ResponsesAgentRequest(**request))
 
 
