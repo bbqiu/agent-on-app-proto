@@ -18,9 +18,8 @@ from openai import OpenAI
 from pydantic import BaseModel
 from unitycatalog.ai.core.base import get_uc_function_client
 
-from agent_server.headers import get_forwarded_access_token
-from agent_server.mlflow_config import setup_mlflow
 from agent_server.server import create_server, invoke, parse_server_args, stream
+from agent_server.utils import setup_mlflow
 
 ############################################
 # Define your LLM endpoint and system prompt

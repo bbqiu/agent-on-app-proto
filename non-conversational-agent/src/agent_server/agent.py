@@ -4,14 +4,14 @@ import json
 import logging
 import os
 
-from databricks.sdk import WorkspaceClient
 import mlflow
-from mlflow.pyfunc import PythonModel
+from databricks.sdk import WorkspaceClient
 from mlflow.entities import SpanType
+from mlflow.pyfunc import PythonModel
 from pydantic import BaseModel, Field
 
-from agent_server.mlflow_config import setup_mlflow
 from agent_server.server import create_server, invoke, parse_server_args
+from agent_server.utils import setup_mlflow
 
 
 class Question(BaseModel):
@@ -31,9 +31,7 @@ class Answer(BaseModel):
     """Represents a structured response from the LLM."""
 
     answer: str = Field(..., description="Yes or No answer")
-    chain_of_thought: str = Field(
-        ..., description="Step-by-step reasoning for the answer"
-    )
+    chain_of_thought: str = Field(..., description="Step-by-step reasoning for the answer")
 
 
 class AnalysisResult(BaseModel):
@@ -41,9 +39,7 @@ class AnalysisResult(BaseModel):
 
     question_text: str = Field(..., description="Original question text")
     answer: str = Field(..., description="Yes or No answer")
-    chain_of_thought: str = Field(
-        ..., description="Step-by-step reasoning for the answer"
-    )
+    chain_of_thought: str = Field(..., description="Step-by-step reasoning for the answer")
     span_id: str | None = Field(
         None,
         description="MLflow span ID for this specific answer (None during offline evaluation)",
@@ -91,9 +87,7 @@ class DocumentAnalyser(PythonModel):
         self.openai_client = self.w.serving_endpoints.get_open_ai_client()
 
     @mlflow.trace(name="answer_question", span_type=SpanType.LLM)
-    def answer_question(
-        self, question_text: str, document_text: str
-    ) -> tuple[object, str | None]:
+    def answer_question(self, question_text: str, document_text: str) -> tuple[object, str | None]:
         """Answer a question using LLM with structured response format.
 
         Uses the OpenAI-compatible client to call a language model with a structured
@@ -140,9 +134,7 @@ class DocumentAnalyser(PythonModel):
             OpenAI ChatCompletion response
         """
         return self.openai_client.chat.completions.create(
-            model=os.getenv(
-                "LLM_MODEL", "databricks-claude-3-7-sonnet"
-            ),  # Configurable LLM model
+            model=os.getenv("LLM_MODEL", "databricks-claude-3-7-sonnet"),  # Configurable LLM model
             messages=[{"role": "user", "content": prompt}],
             response_format={
                 "type": "json_schema",
@@ -173,11 +165,9 @@ class DocumentAnalyser(PythonModel):
 
         results = []
         for input_data in model_input:
-
             analysis_results = []
 
             for question in input_data.questions:
-
                 # Answer the question using LLM with structured response
                 llm_response, answer_span_id = self.answer_question(
                     question.text, input_data.document_text

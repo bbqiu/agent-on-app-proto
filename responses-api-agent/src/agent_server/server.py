@@ -23,7 +23,7 @@ from mlflow.types.responses import (
 )
 from pydantic import BaseModel
 
-from agent_server.headers import set_request_headers
+from agent_server.utils import set_request_headers
 
 _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
