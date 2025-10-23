@@ -63,7 +63,7 @@ In order to access Databricks resources from your local machine while developing
 Very minimal example:
 
 ```python
-from agent_server.mlflow_config import setup_mlflow
+from agent_server.utils import setup_mlflow
 from agent_server.server import create_server, invoke
 
 @invoke()
@@ -169,11 +169,13 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    databricks apps create agent-proto
    ```
 
-1. **Grant the Databricks App service principal (SP) access to your agent's Databricks resources**
+1. **Set up authentication to Databricks resources**
 
-   To access resources like serving endpoints, genie spaces, SQL warehouses, and lakebase instances, you can click `edit` on your app home page to grant the App's SP permission. Refer to the [Databricks Apps resources documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources) for more info.
+   **System Authentication**: To access resources like serving endpoints, genie spaces, SQL warehouses, and lakebase instances, you can click `edit` on your app home page to grant the App's SP permission. Refer to the [Databricks Apps resources documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources) for more info.
 
    For resources that are not supported yet, refer to the [Agent Framework authentication documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/deploy-agent#automatic-authentication-passthrough) for the correct permission level to grant to your app SP. MLflow experiments, UC connections, UC functions, and vector search indexes will be added to the UI soon.
+
+   **On-behalf-of (OBO) Authentication**: Use `get_obo_workspace_client()` from `agent_server.utils` to authenticate as the requesting user instead of the app service principal. Refer to the [OBO authentication documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth?language=Streamlit#retrieve-user-authorization-credentials) for more info.
 
 2. **Set the value of `MLFLOW_EXPERIMENT_ID` in `app.yaml`**
 
@@ -248,9 +250,9 @@ For future updates to the agent, you only need to sync and redeploy your agent.
 ### FAQ
 
 - How is my agent being versioned in MLflow?
-  - In `setup_mlflow()` from `src/agent_server/mlflow_config.py`, we get the current git commit hash and use it to create a logged model, and all traces from that version of the agent will be logged to the corresponding model in MLflow on Databricks.
+  - In `setup_mlflow()` from `src/agent_server/utils.py`, we get the current git commit hash and use it to create a logged model, and all traces from that version of the agent will be logged to the corresponding model in MLflow on Databricks.
 - How do I register my logged model to the UC model registry?
-  - Fill in the catalog, schema, and model name for your UC model in `setup_mlflow()` from `src/agent_server/mlflow_config.py`.
+  - Fill in the catalog, schema, and model name for your UC model in `setup_mlflow()` from `src/agent_server/utils.py`.
   - Call `setup_mlflow(register_model_to_uc=True)` within the startup script in `main()` from `src/agent_server/agent.py`.
 - How does this differ from a conversational agent?
   - Non-conversational agents process discrete requests without maintaining conversation context. They use `agent_type=None` to bypass conversational validation and support flexible input/output formats for task-specific processing.
