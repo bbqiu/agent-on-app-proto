@@ -13,9 +13,9 @@ user_workspace_client = get_obo_workspace_client()
 
 
 async def testing():
-    with MCPServerStreamableHttp(
+    async with MCPServerStreamableHttp(
         params=MCPServerStreamableHttpParams(
-            mcp_server_url=f"https://{os.environ['DATABRICKS_HOST']}/api/2.0/mcp/functions/system/ai",
+            url=f"{os.environ['DATABRICKS_HOST']}/api/2.0/mcp/functions/system/ai",
             headers=sp_workspace_client.config.authenticate(),
         ),
         name="system.ai uc function mcp server",
