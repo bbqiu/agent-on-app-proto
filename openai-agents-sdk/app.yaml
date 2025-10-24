@@ -1,4 +1,4 @@
-command: ["uv", "run", "agent-server"]
+command: ["uv", "run", "start-server"]
 # databricks apps listen by default on port 8000
 
 env:
