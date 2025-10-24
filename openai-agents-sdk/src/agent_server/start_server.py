@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 
+import agent_server.agent as agent
 from agent_server.server import AgentServer, parse_server_args, setup_mlflow
 
 # Load environment variables from .env.local if it exists
