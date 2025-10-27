@@ -18,7 +18,6 @@ from agent_server.utils import (
 )
 
 sp_workspace_client = WorkspaceClient()
-user_workspace_client = get_obo_workspace_client()
 databricks_openai_client = get_async_openai_client(sp_workspace_client)
 set_default_openai_client(databricks_openai_client)
 set_default_openai_api("chat_completions")
@@ -47,6 +46,7 @@ agent = Agent(
 
 @invoke()
 async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
+    user_workspace_client = get_obo_workspace_client()
     async with mcp_manager:
         messages = [i.model_dump() for i in request.input]
         result = await Runner.run(agent, messages)
@@ -55,6 +55,7 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
 
 @stream()
 async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
+    user_workspace_client = get_obo_workspace_client()
     async with mcp_manager:
         messages = [i.model_dump() for i in request.input]
         result = Runner.run_streamed(agent, input=messages)

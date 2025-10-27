@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 
 
 # from https://github.com/openai/openai-agents-python/issues/1881
+# TODO: support passing in an OBO workspace client to auth with user creds
 class MCPServerManager:
     """
     Manages the lifecycle of stdio MCP servers for multi-agent workflows.
