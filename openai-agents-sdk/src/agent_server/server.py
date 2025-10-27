@@ -19,7 +19,12 @@ from fastapi.staticfiles import StaticFiles
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.tracing.trace_manager import InMemoryTraceManager
 from mlflow.types.agent import ChatAgentChunk, ChatAgentRequest, ChatAgentResponse
-from mlflow.types.llm import ChatCompletionChunk, ChatCompletionResponse, ChatMessage
+from mlflow.types.llm import (
+    ChatCompletionChunk,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
+)
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -214,15 +219,18 @@ class AgentValidator:
                 f"Invalid data for {dataclass_class.__name__} (agent_type: {self.agent_type}): {e}"
             )
 
-    def validate_request(self, data: dict) -> None:
+    def validate_and_convert_request(self, data: dict) -> None:
         """Validate request parameters based on agent type"""
         if self.agent_type == "agent/v1/responses":
             self.validate_pydantic(ResponsesAgentRequest, data)
+            return ResponsesAgentRequest(**data)
         elif self.agent_type == "agent/v1/chat":
             for msg in data.get("messages", []):
                 self.validate_dataclass(ChatMessage, msg)
+            return ChatCompletionRequest(**data)
         elif self.agent_type == "agent/v2/chat":
             self.validate_pydantic(ChatAgentRequest, data)
+            return ChatAgentRequest(**data)
 
     def validate_invoke_response(self, result: Any) -> None:
         """Validate the invoke response"""
@@ -338,7 +346,7 @@ class AgentServer:
             request_data = {k: v for k, v in data.items() if k != "stream"}
 
             try:
-                self.validator.validate_request(request_data)
+                request_data = self.validator.validate_and_convert_request(request_data)
             except ValueError as e:
                 raise HTTPException(
                     status_code=400,

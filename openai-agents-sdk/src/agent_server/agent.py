@@ -33,6 +33,7 @@ mcp_server = mcp_manager.register_server(
             url=f"{get_databricks_host_from_env()}/api/2.0/mcp/functions/system/ai",
             headers=sp_workspace_client.config.authenticate(),
         ),
+        client_session_timeout_seconds=10,
         name="system.ai uc function mcp server",
     )
 )
@@ -46,9 +47,10 @@ agent = Agent(
 
 
 @invoke()
-async def invoke(request: dict) -> ResponsesAgentResponse:
+async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
     async with mcp_manager:
-        result = await Runner.run(agent, request.get("input", []))
+        messages = [i.model_dump() for i in request.input]
+        result = await Runner.run(agent, messages)
         return ResponsesAgentResponse(output=[item.to_input_item() for item in result.new_items])
 
 

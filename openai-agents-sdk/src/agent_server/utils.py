@@ -67,10 +67,16 @@ class MCPServerManager:
 
 def get_databricks_host_from_env() -> Optional[str]:
     host = os.getenv("DATABRICKS_HOST")
-    if host is None or host.startswith("https://"):
-        print(host)
+    if host.startswith("https://"):
         return host
-    return f"https://{host}"
+    elif host is not None:
+        return f"https://{host}"
+    try:
+        w = WorkspaceClient()
+        return w.config.host
+    except Exception as e:
+        print(e)
+        return None
 
 
 def _get_async_http_client(workspace_client: WorkspaceClient) -> AsyncClient:
