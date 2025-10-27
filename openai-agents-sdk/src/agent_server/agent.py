@@ -71,19 +71,24 @@ class MCPServerManager:
     async def cleanup_all(self):
         """Explicitly cleanup all registered servers."""
         for server in self.servers:
-            await server.cleanup()
+            try:
+                await server.cleanup()
+            except Exception as e:
+                # Handle anyio TaskGroup cancellation issues during cleanup
+                print(f"Warning: Error during MCP server cleanup: {e}")
+                # Continue cleanup for other servers
 
 
 # Global instances
 mcp_manager = MCPServerManager()
 
-# Register MCP server
 mcp_server = mcp_manager.register_server(
     MCPServerStreamableHttp(
         params=MCPServerStreamableHttpParams(
             url=f"{os.environ['DATABRICKS_HOST']}/api/2.0/mcp/functions/system/ai",
             headers=sp_workspace_client.config.authenticate(),
         ),
+        client_session_timeout_seconds=30,
         name="system.ai uc function mcp server",
     )
 )
@@ -97,33 +102,48 @@ agent = Agent(
 )
 
 
-async def testing():
-    async with mcp_manager:
-        result = await Runner.run(agent, "Add 7 and 22.")
-        return result.final_output
+# async def testing():
+#     async with mcp_manager:
+#         result = await Runner.run(agent, "Add 7 and 22.")
+#         return result.final_output
 
 
 @invoke()
-async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
-    async with mcp_manager:
-        result = await Runner.run(agent, request.get("input", []))
-        # result = await Runner.run(agent, "Add 7 and 22.")
-        print(result.model_dump())
-        return ResponsesAgentResponse(output=[item.to_input_item() for item in result.new_items])
+async def invoke(request: any) -> ResponsesAgentResponse:
+    print("Starting invoke function")
+    try:
+        print("Entering mcp_manager context")
+        async with mcp_manager:
+            print("Inside mcp_manager context, about to run agent")
+            # result = await Runner.run(agent, request.get("input", []))
+            result = await Runner.run(agent, "Add 7 and 22.")
+            print(f"Agent run completed successfully")
+            return ResponsesAgentResponse(
+                output=[item.to_input_item() for item in result.new_items]
+            )
+    except Exception as e:
+        print(f"Exception in invoke: {type(e).__name__}: {e}")
+        import traceback
+
+        traceback.print_exc()
+        raise
 
 
-@stream()
-async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
-    async with mcp_manager:
-        # Extract the user input from the responses API request
-        input_messages = request.get("input", [])
-        if input_messages:
-            # Get the last user message
-            user_content = input_messages[-1].get("content", "")
-        else:
-            user_content = "Hello"
+# Test the invoke function locally
+asyncio.run(invoke({"input": ["Add 7 and 22."]}))
 
-        result = await Runner.run(agent, user_content)
+# @stream()
+# async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
+#     async with mcp_manager:
+#         # Extract the user input from the responses API request
+#         input_messages = request.get("input", [])
+#         if input_messages:
+#             # Get the last user message
+#             user_content = input_messages[-1].get("content", "")
+#         else:
+#             user_content = "Hello"
 
-        # Yield the response in streaming format
-        yield {"output": [{"role": "assistant", "content": result.final_output}]}
+#         result = await Runner.run(agent, user_content)
+
+#         # Yield the response in streaming format
+#         yield {"output": [{"role": "assistant", "content": result.final_output}]}
