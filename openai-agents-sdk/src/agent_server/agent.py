@@ -53,43 +53,30 @@ def get_databricks_host_from_env() -> Optional[str]:
 # set_default_openai_client(openai_client)
 
 
-# mcp_manager = MCPServerManager()
-# mcp_server = mcp_manager.register_server(
-#     MCPServerStreamableHttp(
-#         params=MCPServerStreamableHttpParams(
-#             url=f"{get_databricks_host_from_env()}/api/2.0/mcp/functions/system/ai",
-#             headers=sp_workspace_client.config.authenticate(),
-#         ),
-#         name="system.ai uc function mcp server",
-#     )
-# )
+mcp_manager = MCPServerManager()
+mcp_server = mcp_manager.register_server(
+    MCPServerStreamableHttp(
+        params=MCPServerStreamableHttpParams(
+            url=f"{get_databricks_host_from_env()}/api/2.0/mcp/functions/system/ai",
+            headers=sp_workspace_client.config.authenticate(),
+        ),
+        name="system.ai uc function mcp server",
+    )
+)
 
-# agent = Agent(
-#     name="code execution agent",
-#     instructions="You are a code execution agent. You can execute code and return the results.",
-#     model="gpt-5-nano",
-#     mcp_servers=[mcp_server],
-# )
+agent = Agent(
+    name="code execution agent",
+    instructions="You are a code execution agent. You can execute code and return the results.",
+    model="gpt-5-nano",
+    mcp_servers=[mcp_server],
+)
 
 mlflow.openai.autolog()
 
 
 @invoke()
 async def invoke(request: dict) -> ResponsesAgentResponse:
-    async with MCPServerStreamableHttp(
-        params=MCPServerStreamableHttpParams(
-            url=f"{get_databricks_host_from_env()}/api/2.0/mcp/functions/system/ai",
-            headers=sp_workspace_client.config.authenticate(),
-        ),
-        name="system.ai uc function mcp server",
-    ) as mcp_server:
-        agent = Agent(
-            name="code execution agent",
-            instructions="You are a code execution agent. You can execute code and return the results.",
-            model="gpt-5-nano",
-            mcp_servers=[mcp_server],
-        )
-        # async with mcp_manager:
+    async with mcp_manager:
         result = await Runner.run(agent, request.get("input", []))
         return ResponsesAgentResponse(output=[item.to_input_item() for item in result.new_items])
 
