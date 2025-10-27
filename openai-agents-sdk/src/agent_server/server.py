@@ -202,6 +202,9 @@ class AgentValidator:
         if isinstance(data, pydantic_class):
             return
         try:
+            if isinstance(data, BaseModel):
+                pydantic_class(**data.model_dump())
+                return
             pydantic_class(**data)
         except Exception as e:
             raise ValueError(
@@ -221,7 +224,9 @@ class AgentValidator:
 
     def validate_and_convert_request(self, data: dict) -> None:
         """Validate request parameters based on agent type"""
-        if self.agent_type == "agent/v1/responses":
+        if self.agent_type is None:
+            return data
+        elif self.agent_type == "agent/v1/responses":
             self.validate_pydantic(ResponsesAgentRequest, data)
             return ResponsesAgentRequest(**data)
         elif self.agent_type == "agent/v1/chat":

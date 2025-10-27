@@ -1,5 +1,4 @@
-import asyncio
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator
 
 import mlflow
 from agents import Agent, Runner, set_default_openai_api, set_default_openai_client
@@ -33,7 +32,7 @@ mcp_server = mcp_manager.register_server(
             url=f"{get_databricks_host_from_env()}/api/2.0/mcp/functions/system/ai",
             headers=sp_workspace_client.config.authenticate(),
         ),
-        client_session_timeout_seconds=10,
+        client_session_timeout_seconds=20,
         name="system.ai uc function mcp server",
     )
 )
@@ -41,7 +40,7 @@ mcp_server = mcp_manager.register_server(
 agent = Agent(
     name="code execution agent",
     instructions="You are a code execution agent. You can execute code and return the results.",
-    model="gpt-5",
+    model="databricks-claude-3-7-sonnet",
     mcp_servers=[mcp_server],
 )
 
@@ -54,10 +53,12 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
         return ResponsesAgentResponse(output=[item.to_input_item() for item in result.new_items])
 
 
-# @stream()
-# async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
-#     async with mcp_manager:
-#         result = await Runner.run(agent, request.get("input", []))
+@stream()
+async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
+    async with mcp_manager:
+        messages = [i.model_dump() for i in request.input]
+        result = Runner.run_streamed(agent, input=messages)
 
-#         # Yield the response in streaming format
-#         yield {"output": [{"role": "assistant", "content": result.final_output}]}
+        async for event in result.stream_events():
+            if event.type == "raw_response_event":
+                yield event.data.model_dump()
