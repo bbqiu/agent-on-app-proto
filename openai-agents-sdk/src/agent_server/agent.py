@@ -62,3 +62,10 @@ async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, Non
         async for event in result.stream_events():
             if event.type == "raw_response_event":
                 yield event.data.model_dump()
+            elif (
+                event.type == "run_item_stream_event" and event.item.type == "tool_call_output_item"
+            ):
+                yield ResponsesAgentStreamEvent(
+                    type="response.output_item.done",
+                    item=event.item.to_input_item(),
+                )
