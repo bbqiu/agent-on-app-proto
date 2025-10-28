@@ -48,13 +48,13 @@ In order to access Databricks resources from your local machine while developing
 
 `agent.py` currently contains a very simple non-conversational document analysis agent. Please modify this file to create your custom non-conversational agent. In order to work with the agent server provided, inside of `agent.py`, we require you to:
 
-- Call `create_server()` in order to initialize the server.
+- Create an `AgentServer` instance in order to initialize the server.
 
-  - For non-conversational agents that don't follow the standard chat APIs, use: **`create_server(agent_type=None)`**
+  - For non-conversational agents that don't follow the standard chat APIs, use: **`AgentServer(agent_type=None)`**
     - This bypasses MLflow's conversational agent validation while still providing structured response handling
     - Supports flexible return types (dict, dataclass, pydantic models)
 
-- Create an app module that is importable via some import path like `agent_server.agent:app`. This is used if your FastAPI server has multiple workers.
+- Create an app module that is importable via some import path like `agent_server.start_server:app`. This is used if your FastAPI server has multiple workers.
 - Use `parse_server_args()` to parse the server arguments.
 - Decorate your method with `@invoke()` for structured response handling.
   - For non-conversational agents that return structured data, we focus on the `@invoke()` decorator.
@@ -64,34 +64,45 @@ In order to access Databricks resources from your local machine while developing
 Very minimal example:
 
 `agent.py`:
+
 ```python
-from agent_server.server import AgentServer, invoke
+from agent_server.server import invoke
 
 @invoke()
 async def process_request(request: dict) -> dict:
-   return dict
-
-agent_server = AgentServer(agent_type=None)  # Non-conversational agent
-app = agent_server.app
+   return request
 ```
 
 `start_server.py`:
+
 ```python
-from agent_server.server import AgentServer, setup_mlflow, parse_server_args
-from agent_server.agent import agent_server
+from dotenv import load_dotenv
+
+# need to import the agent to register the functions with the server
+import agent_server.agent  # noqa: F401
+from agent_server.server import AgentServer, parse_server_args, setup_mlflow
+
+# Load environment variables from .env.local if it exists
+load_dotenv(dotenv_path=".env.local", override=True)
+
+agent_server = AgentServer(agent_type=None)  # Non-conversational agent
+# define the app as a module level variable to enable multiple workers
+app = agent_server.app  # noqa: F841
+
+args = parse_server_args()
+
+setup_mlflow()
+print(f"Running server on port {args.port} with {args.workers} workers and reload: {args.reload}")
+
 
 def main():
-    args = parse_server_args()
-    setup_mlflow()
+    # to support multiple workers, import the app defined above as a string
     agent_server.run(
-        "agent_server.agent:app",
+        app_import_string="agent_server.start_server:app",
         port=args.port,
         workers=args.workers,
         reload=args.reload,
     )
-
-if __name__ == "__main__":
-    main()
 ```
 
 Common changes to make:

@@ -98,11 +98,11 @@ from agent_server.server import invoke, stream
 
 @invoke()
 async def non_streaming(request: dict) -> dict:
-   return dict
+   return request
 
 @stream()
 async def streaming(request: dict) -> AsyncGenerator[dict, None]:
-   yield dict
+   yield request
 ```
 
 `start_server.py`:
