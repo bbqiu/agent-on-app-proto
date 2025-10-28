@@ -69,7 +69,7 @@ Common changes to make:
 
 ### Modifying your agent
 
-#### TODO: update this section with more details about MCP and openai agents sdk auth refresh
+#### TODO: update this section with more details about MCP and langgraph
 
 `agent.py` currently contains a Responses API agent. Please modify this file to create your custom agent. In order to work with the agent server provided, inside of `agent.py`, we require you to:
 

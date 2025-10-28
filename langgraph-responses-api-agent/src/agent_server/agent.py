@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import mlflow
 from databricks.sdk import WorkspaceClient
@@ -34,8 +34,8 @@ def init_mcp_client(workspace_client: WorkspaceClient) -> MultiServerMCPClient:
     )
 
 
-async def init_agent():
-    mcp_client = init_mcp_client(sp_workspace_client)
+async def init_agent(workspace_client: Optional[WorkspaceClient] = None):
+    mcp_client = init_mcp_client(workspace_client or sp_workspace_client)
     tools = await mcp_client.get_tools()
     return create_agent(tools=tools, model=ChatDatabricks(endpoint="databricks-claude-3-7-sonnet"))
 
