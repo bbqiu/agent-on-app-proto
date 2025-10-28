@@ -23,7 +23,6 @@ build-backend = "hatchling.build"
 dev = [
     "hatchling>=1.27.0",
     "pytest>=7.0.0",
-    "httpx>=0.24.0",
 ]
 
 

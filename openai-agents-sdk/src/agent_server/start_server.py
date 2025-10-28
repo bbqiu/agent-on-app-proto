@@ -12,9 +12,7 @@ app = agent_server.app  # noqa: F841
 args = parse_server_args()
 
 setup_mlflow()
-print(
-    f"Single endpoint: POST /invocations on port {args.port} with {args.workers} workers and reload: {args.reload}"
-)
+print(f"Running server on port {args.port} with {args.workers} workers and reload: {args.reload}")
 
 
 def main():
