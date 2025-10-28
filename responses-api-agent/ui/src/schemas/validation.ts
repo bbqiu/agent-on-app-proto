@@ -30,7 +30,7 @@ export const ResponseToolCallSchema = z.object({
   call_id: z.string(),
   name: z.string(),
   arguments: z.string(),
-  status: z.enum(["pending", "completed", "failed"]).optional(),
+  // status: z.enum(["pending", "completed", "failed"]).optional(),
 });
 
 export const ResponseToolCallOutputSchema = z.object({
@@ -126,7 +126,6 @@ export const ResponsesAgentRequestSchema = z.object({
     })
     .optional(),
 });
-
 
 export const ChatStateSchema = z.object({
   input: z.array(ResponseInputItemSchema),
