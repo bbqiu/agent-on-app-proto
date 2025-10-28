@@ -4,7 +4,6 @@ from typing import Any, Callable, Generator, Optional
 from uuid import uuid4
 
 import mlflow
-import openai
 from databricks.sdk import WorkspaceClient
 from databricks_openai import UCFunctionToolkit, VectorSearchRetrieverTool
 from mlflow.entities import SpanType
@@ -18,15 +17,13 @@ from openai import OpenAI
 from pydantic import BaseModel
 from unitycatalog.ai.core.base import get_uc_function_client
 
-from agent_server.server import create_server, invoke, parse_server_args, stream
-from agent_server.utils import setup_mlflow
+from agent_server.server import invoke, stream
 
 ############################################
 # Define your LLM endpoint and system prompt
 ############################################
 # TODO: Replace with your model serving endpoint
 LLM_ENDPOINT_NAME = "databricks-claude-3-7-sonnet"
-# LLM_ENDPOINT_NAME = "databricks-meta-llama-3-3-70b-instruct"
 
 # TODO: Update with your system prompt
 SYSTEM_PROMPT = """
@@ -198,36 +195,12 @@ AGENT = ToolCallingAgent(llm_endpoint=LLM_ENDPOINT_NAME, tools=TOOL_INFOS)
 
 
 @invoke()
-def predict(request: dict) -> ResponsesAgentResponse:
-    return AGENT.predict(ResponsesAgentRequest(**request))
+def predict(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
+    return AGENT.predict(request)
 
 
 @stream()
 def predict_stream(
-    request: dict,
+    request: ResponsesAgentRequest,
 ) -> Generator[ResponsesAgentStreamEvent, None, None]:
-    yield from AGENT.predict_stream(ResponsesAgentRequest(**request))
-
-
-###########################################
-# Required components to start the server #
-###########################################
-
-agent_server = create_server("agent/v1/responses")
-app = agent_server.app
-
-
-def main():
-    args = parse_server_args()
-
-    setup_mlflow()
-    print(
-        f"Single endpoint: POST /invocations on port {args.port} with {args.workers} workers and reload: {args.reload}"
-    )
-
-    agent_server.run(
-        "agent_server.agent:app",  # import string for app defined above to support workers
-        port=args.port,
-        workers=args.workers,
-        reload=args.reload,
-    )
+    yield from AGENT.predict_stream(request)
