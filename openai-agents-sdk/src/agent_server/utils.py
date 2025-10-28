@@ -1,14 +1,35 @@
 import os
+import traceback
+from asyncio.exceptions import CancelledError
 from typing import List, Optional
 
-from agents.mcp import MCPServerStdio
+from agents.mcp import MCPServerStdio, MCPServerStreamableHttp
 from databricks.sdk import WorkspaceClient
 from httpx import AsyncClient, Auth, Request
 from openai import AsyncOpenAI
 
 
+# TODO: somehow refresh auth for broken connections. gave up here and just reinitialized the agent on each call, which is bad for latency, but what you'd have to do for OBO anyways?)
+# some tools that are not OBO should be able to persist across invocations of the agent to save time
+class DatabricksMCPServerStreamableHttp(MCPServerStreamableHttp):
+    def __init__(self, workspace_client: WorkspaceClient, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.workspace_client = workspace_client
+
+    async def connect(self):
+        try:
+            return await super().connect()
+        except CancelledError:
+            print(self.workspace_client.config.authenticate())
+            self.params["headers"] = self.workspace_client.config.authenticate() | self.params.get(
+                "headers", {}
+            )
+            print("headers heeeere", self.params["headers"])
+            return await super().connect()
+
+
 # from https://github.com/openai/openai-agents-python/issues/1881
-# TODO: support passing in an OBO workspace client to auth with user creds
+# TODO: refresh the auth for mcp servers when the token is going to expire
 class MCPServerManager:
     """
     Manages the lifecycle of stdio MCP servers for multi-agent workflows.
@@ -24,11 +45,13 @@ class MCPServerManager:
         my_server = mcp_manager.register_server(MCPServerStdio(...))
 
         # In run.py:
-        async with mcp_manager:
+        async with mcp_manager: ########### somehow will need to handle auth refresh?
+                                            maybe this is just handled by a subclass of MCPServerStreamableHttp for databricks
             result = await Runner.run(agent, message)
     """
 
-    def __init__(self):
+    def __init__(self, workspace_client: Optional[WorkspaceClient] = None):
+        self.workspace_client = workspace_client
         self.servers: List[MCPServerStdio] = []
 
     def register_server(self, server: MCPServerStdio) -> MCPServerStdio:

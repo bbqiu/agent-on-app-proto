@@ -12,6 +12,7 @@ from mlflow.types.responses import (
 
 from agent_server.server import get_obo_workspace_client, invoke, stream
 from agent_server.utils import (
+    DatabricksMCPServerStreamableHttp,
     MCPServerManager,
     get_async_openai_client,
     get_databricks_host_from_env,
@@ -24,9 +25,8 @@ set_default_openai_api("chat_completions")
 mlflow.openai.autolog()
 
 
-mcp_manager = MCPServerManager()
-mcp_server = mcp_manager.register_server(
-    MCPServerStreamableHttp(
+async def init_mcp_server():
+    return MCPServerStreamableHttp(
         params=MCPServerStreamableHttpParams(
             url=f"{get_databricks_host_from_env()}/api/2.0/mcp/functions/system/ai",
             headers=sp_workspace_client.config.authenticate(),
@@ -34,20 +34,18 @@ mcp_server = mcp_manager.register_server(
         client_session_timeout_seconds=20,
         name="system.ai uc function mcp server",
     )
-)
-
-agent = Agent(
-    name="code execution agent",
-    instructions="You are a code execution agent. You can execute code and return the results.",
-    model="databricks-claude-3-7-sonnet",
-    mcp_servers=[mcp_server],
-)
 
 
 @invoke()
 async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
     user_workspace_client = get_obo_workspace_client()
-    async with mcp_manager:
+    async with await init_mcp_server() as mcp_server:
+        agent = Agent(
+            name="code execution agent",
+            instructions="You are a code execution agent. You can execute code and return the results.",
+            model="databricks-claude-3-7-sonnet",
+            mcp_servers=[mcp_server],
+        )
         messages = [i.model_dump() for i in request.input]
         result = await Runner.run(agent, messages)
         return ResponsesAgentResponse(output=[item.to_input_item() for item in result.new_items])
@@ -56,7 +54,13 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
 @stream()
 async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
     user_workspace_client = get_obo_workspace_client()
-    async with mcp_manager:
+    async with await init_mcp_server() as mcp_server:
+        agent = Agent(
+            name="code execution agent",
+            instructions="You are a code execution agent. You can execute code and return the results.",
+            model="databricks-claude-3-7-sonnet",
+            mcp_servers=[mcp_server],
+        )
         messages = [i.model_dump() for i in request.input]
         result = Runner.run_streamed(agent, input=messages)
 
