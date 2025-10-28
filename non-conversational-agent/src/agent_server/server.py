@@ -1,20 +1,30 @@
 import argparse
+import contextvars
 import inspect
 import json
 import logging
+import os
+import subprocess
 import time
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, Type
+from typing import Any, Callable, Dict, Literal, Optional, Type
 
 import mlflow
+from databricks.sdk import WorkspaceClient
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.tracing.trace_manager import InMemoryTraceManager
-from mlflow.types.llm import ChatCompletionChunk, ChatCompletionResponse, ChatMessage
+from mlflow.types.agent import ChatAgentChunk, ChatAgentRequest, ChatAgentResponse
+from mlflow.types.llm import (
+    ChatCompletionChunk,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
+)
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -24,7 +34,132 @@ from pydantic import BaseModel
 
 _invoke_function: Optional[Callable] = None
 _stream_function: Optional[Callable] = None
-AgentType = Literal["agent/v1/responses", "agent/v1/chat"]
+AgentType = Literal["agent/v1/responses", "agent/v1/chat", "agent/v2/chat"]
+
+
+# Context-isolated storage for request headers, ensuring thread-safe access across async execution contexts
+_request_headers: contextvars.ContextVar[Dict[str, str]] = contextvars.ContextVar(
+    "request_headers", default={}
+)
+
+
+def set_request_headers(headers: Dict[str, str]) -> None:
+    """Set request headers in the current context (called by server)"""
+    _request_headers.set(headers)
+
+
+def get_request_headers() -> Dict[str, str]:
+    """Get all request headers from the current context"""
+    return _request_headers.get()
+
+
+def get_header(name: str, default: Optional[str] = None) -> Optional[str]:
+    """Get a specific header value from the current context"""
+    return get_request_headers().get(name, default)
+
+
+def get_forwarded_access_token() -> Optional[str]:
+    """Get the x-forwarded-access-token from the current request context."""
+    return get_header("x-forwarded-access-token")
+
+
+def get_obo_workspace_client() -> WorkspaceClient:
+    """Get a workspace client with the token from the
+    x-forwarded-access-token header for OBO authentication"""
+    return WorkspaceClient(token=get_forwarded_access_token(), auth_type="pat")
+
+
+def _configure_mlflow_tracking() -> None:
+    """
+    Configure MLflow tracking URI with robust authentication that works both locally and on Databricks Apps.
+
+    Priority order:
+    1. If DATABRICKS_HOST and DATABRICKS_TOKEN are set, use them directly
+    2. If running on Databricks Apps (DATABRICKS_APP_NAME exists), use "databricks" URI
+    3. If DATABRICKS_CONFIG_PROFILE is set, try to use profile-based authentication
+    4. Fall back to "databricks" URI and let MLflow handle default authentication
+    """
+    # Check if explicit host and token are provided (most reliable method)
+    databricks_host = os.getenv("DATABRICKS_HOST")
+    databricks_token = os.getenv("DATABRICKS_TOKEN")
+
+    if databricks_host and databricks_token:
+        print("Using explicit DATABRICKS_HOST and DATABRICKS_TOKEN for authentication")
+        mlflow.set_tracking_uri("databricks")
+        return
+
+    # Check if we're running in Databricks Apps environment
+    app_name = os.getenv("DATABRICKS_APP_NAME")
+    if app_name:
+        print(
+            f"Running in Databricks Apps environment (app: {app_name}), using default authentication"
+        )
+        mlflow.set_tracking_uri("databricks")
+        return
+
+    # Try profile-based authentication for local development
+    profile = os.getenv("DATABRICKS_CONFIG_PROFILE")
+    if profile:
+        try:
+            print(f"Attempting to use Databricks CLI profile: {profile}")
+            mlflow.set_tracking_uri(f"databricks://{profile}")
+            # Test the connection by trying to get the tracking URI
+            tracking_uri = mlflow.get_tracking_uri()
+            print(f"Successfully configured MLflow with profile '{profile}': {tracking_uri}")
+            return
+        except Exception as e:
+            print(f"Failed to use profile '{profile}': {e}")
+            print("Falling back to default authentication")
+
+    # Final fallback: use default "databricks" URI
+    print("Using default Databricks authentication (relies on environment or default profile)")
+    mlflow.set_tracking_uri("databricks")
+
+
+def setup_mlflow(*, register_model_to_uc: bool = False) -> None:
+    """Initialize MLflow tracking and set active model."""
+    experiment_id = os.getenv("MLFLOW_EXPERIMENT_ID")
+    assert experiment_id is not None, (
+        "You must set MLFLOW_EXPERIMENT_ID in your environment to enable MLflow git-based logging and real time tracing. Refer to the README for more info."
+    )
+
+    # Configure MLflow tracking URI with robust authentication
+    _configure_mlflow_tracking()
+    mlflow.set_experiment(experiment_id=experiment_id)
+
+    # in a Databricks App, the app name is set in the environment variable DATABRICKS_APP_NAME
+    # in local development, we use a fallback app name
+    # TODO: add a fallback app name
+    app_name = os.getenv("DATABRICKS_APP_NAME", "local-dev")
+
+    # Get current git commit hash for versioning
+    try:
+        git_commit = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()[:8]
+        )
+        version_identifier = f"git-{git_commit}"
+    except subprocess.CalledProcessError:
+        version_identifier = "no-git-repo"  # Fallback if not in a git repo
+    logged_model_name = f"{app_name}-{version_identifier}"
+
+    # Set the active model context
+    active_model_info = mlflow.set_active_model(name=logged_model_name)
+    print(
+        f"Active LoggedModel: '{active_model_info.name}', Model ID: '{active_model_info.model_id}'"
+    )
+
+    if register_model_to_uc:
+        mlflow.set_registry_uri(os.getenv("MLFLOW_REGISTRY_URI"))
+        # TODO: fill in the catalog, schema, and model name for the UC model
+        catalog = "main"
+        schema = "default"
+        model_name = ""
+        assert model_name, "Please set the catalog, schema, and model name for the UC model"
+        UC_MODEL_NAME = f"{catalog}.{schema}.{model_name}"
+        uc_registered_model_info = mlflow.register_model(
+            model_uri=active_model_info.model_uri, name=UC_MODEL_NAME
+        )
+        print(f"Registered model to UC: {uc_registered_model_info}")
 
 
 def invoke() -> Callable:
@@ -39,8 +174,10 @@ def invoke() -> Callable:
 
     return decorator
 
+
 def get_invoke_function():
     return _invoke_function
+
 
 def stream() -> Callable:
     """Decorator to register a function as a stream endpoint. Can only be used once."""
@@ -65,6 +202,9 @@ class AgentValidator:
         if isinstance(data, pydantic_class):
             return
         try:
+            if isinstance(data, BaseModel):
+                pydantic_class(**data.model_dump())
+                return
             pydantic_class(**data)
         except Exception as e:
             raise ValueError(
@@ -82,14 +222,20 @@ class AgentValidator:
                 f"Invalid data for {dataclass_class.__name__} (agent_type: {self.agent_type}): {e}"
             )
 
-    def validate_request(self, data: dict) -> None:
+    def validate_and_convert_request(self, data: dict) -> None:
         """Validate request parameters based on agent type"""
-        if self.agent_type == "agent/v1/responses":
+        if self.agent_type is None:
+            return data
+        elif self.agent_type == "agent/v1/responses":
             self.validate_pydantic(ResponsesAgentRequest, data)
+            return ResponsesAgentRequest(**data)
         elif self.agent_type == "agent/v1/chat":
             for msg in data.get("messages", []):
                 self.validate_dataclass(ChatMessage, msg)
-        # TODO: add additional validation for different agent types
+            return ChatCompletionRequest(**data)
+        elif self.agent_type == "agent/v2/chat":
+            self.validate_pydantic(ChatAgentRequest, data)
+            return ChatAgentRequest(**data)
 
     def validate_invoke_response(self, result: Any) -> None:
         """Validate the invoke response"""
@@ -97,7 +243,8 @@ class AgentValidator:
             self.validate_pydantic(ResponsesAgentResponse, result)
         elif self.agent_type == "agent/v1/chat":
             self.validate_dataclass(ChatCompletionResponse, result)
-        # TODO: add additional validation for different agent types
+        elif self.agent_type == "agent/v2/chat":
+            self.validate_pydantic(ChatAgentResponse, result)
 
     def validate_stream_response(self, result: Any) -> None:
         """Validate a stream event for agent/v1/responses (ResponsesAgent)"""
@@ -105,7 +252,8 @@ class AgentValidator:
             self.validate_pydantic(ResponsesAgentStreamEvent, result)
         elif self.agent_type == "agent/v1/chat":
             self.validate_dataclass(ChatCompletionChunk, result)
-        # TODO: add additional validation for different agent types
+        elif self.agent_type == "agent/v2/chat":
+            self.validate_dataclass(ChatAgentChunk, result)
 
     def validate_and_convert_result(self, result: Any, stream: bool = False) -> dict:
         """Validate and convert the result into a dictionary if necessary"""
@@ -132,7 +280,6 @@ class AgentServer:
         self.validator = AgentValidator(agent_type)
         self.app = FastAPI(title="Agent Server", version="0.0.1")
 
-        # Add CORS middleware to allow frontend connections
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -147,16 +294,13 @@ class AgentServer:
 
     def _setup_static_files(self) -> None:
         """Setup static file serving for the UI"""
-        # Get the path to the UI build folder relative to the server location
         ui_dist_path = Path(__file__).parent.parent.parent / "ui/static"
 
         if ui_dist_path.exists():
-            # Mount the static assets
             self.app.mount(
                 "/assets", StaticFiles(directory=str(ui_dist_path / "assets")), name="assets"
             )
 
-            # Serve the main index.html at root and catch-all routes for React Router
             from fastapi.responses import FileResponse
 
             @self.app.get("/")
@@ -179,6 +323,10 @@ class AgentServer:
     def _setup_routes(self) -> None:
         @self.app.post("/invocations")
         async def invocations_endpoint(request: Request):
+            # capture headers such as x-forwarded-access-token
+            # https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth?language=Streamlit#retrieve-user-authorization-credentials
+            set_request_headers(dict(request.headers))
+
             start_time = time.time()
 
             try:
@@ -188,7 +336,6 @@ class AgentServer:
                     status_code=400, detail=f"Invalid JSON in request body: {str(e)}"
                 )
 
-            # Log incoming request
             self.logger.info(
                 "Request received",
                 extra={
@@ -198,16 +345,13 @@ class AgentServer:
                 },
             )
 
-            # Check if streaming is requested
             is_streaming = data.get("stream", False)
             return_trace = data.get("databricks_options", {}).get("return_trace", False)
 
-            # Remove stream parameter from data before validation
             request_data = {k: v for k, v in data.items() if k != "stream"}
 
-            # Validate request parameters based on agent type
             try:
-                self.validator.validate_request(request_data)
+                request_data = self.validator.validate_and_convert_request(request_data)
             except ValueError as e:
                 raise HTTPException(
                     status_code=400,
@@ -228,14 +372,12 @@ class AgentServer:
         self, data: dict, start_time: float, return_trace: bool
     ) -> dict:
         """Handle non-streaming invoke requests"""
-        # Use the single invoke function
         if _invoke_function is None:
             raise HTTPException(status_code=500, detail="No invoke function registered")
 
         func = _invoke_function
         func_name = func.__name__
 
-        # Check if function is async or sync and execute with tracing
         try:
             with mlflow.start_span(name=f"{func_name}_invoke") as span:
                 span.set_inputs(data)
@@ -247,13 +389,14 @@ class AgentServer:
                 result = self.validator.validate_and_convert_result(result)
                 duration = round(time.time() - start_time, 2)
                 span.set_attribute("duration_ms", duration)
+                if self.agent_type == "agent/v1/responses":
+                    span.set_attribute("mlflow.message.format", "openai")
                 span.set_outputs(result)
 
                 if return_trace:
                     databricks_output = self._get_databricks_output(span.trace_id)
                     result["databricks_output"] = databricks_output
 
-            # Log response details
             self.logger.info(
                 "Response sent",
                 extra={
@@ -289,14 +432,12 @@ class AgentServer:
         self, data: dict, start_time: float, return_trace: bool
     ) -> StreamingResponse:
         """Handle streaming requests"""
-        # Use the single stream function
         if _stream_function is None:
             raise HTTPException(status_code=500, detail="No stream function registered")
 
         func = _stream_function
         func_name = func.__name__
 
-        # Collect all chunks for tracing
         all_chunks = []
 
         async def generate():
@@ -315,12 +456,26 @@ class AgentServer:
                             all_chunks.append(chunk)
                             yield f"data: {json.dumps(chunk)}\n\n"
 
-                    # Log the full streaming session
                     duration = round(time.time() - start_time, 2)
                     span.set_attribute("duration_ms", duration)
                     if self.agent_type == "agent/v1/responses":
+                        span.set_attribute("mlflow.message.format", "openai")
                         span.set_outputs(ResponsesAgent.responses_agent_output_reducer(all_chunks))
-                    # TODO: add additional streaming output reducers for different agent types
+                    elif self.agent_type == "agent/v1/chat":
+
+                        def _extract_content(chunk: ChatCompletionChunk | dict) -> str:
+                            if isinstance(chunk, dict):
+                                return (
+                                    chunk.get("choices", [])[0].get("delta", {}).get("content", "")
+                                )
+                            if not chunk.choices:
+                                return ""
+                            return chunk.choices[0].delta.content or ""
+
+                        content = "".join(map(_extract_content, all_chunks))
+                        span.set_outputs({"choices": [{"role": "assistant", "content": content}]})
+                    elif self.agent_type == "agent/v2/chat":
+                        span.set_outputs({"messages": [chunk["delta"] for chunk in all_chunks]})
                     else:
                         span.set_outputs(all_chunks)
 
@@ -328,10 +483,8 @@ class AgentServer:
                         databricks_output = self._get_databricks_output(span.trace_id)
                         yield f"data: {json.dumps({'databricks_output': databricks_output})}\n\n"
 
-                    # Send [DONE] signal
                     yield "data: [DONE]\n\n"
 
-                # Log streaming response completion
                 self.logger.info(
                     "Streaming response completed",
                     extra={
@@ -397,7 +550,3 @@ def parse_server_args():
         help="Reload the server on code changes (default: False)",
     )
     return parser.parse_args()
-
-
-def create_server(agent_type: Optional[AgentType] = None) -> AgentServer:
-    return AgentServer(agent_type)

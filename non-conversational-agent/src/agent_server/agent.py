@@ -10,8 +10,7 @@ from mlflow.entities import SpanType
 from mlflow.pyfunc import PythonModel
 from pydantic import BaseModel, Field
 
-from agent_server.server import create_server, invoke, parse_server_args
-from agent_server.utils import setup_mlflow
+from agent_server.server import invoke
 
 
 class Question(BaseModel):
@@ -213,26 +212,3 @@ async def invoke(data: dict) -> dict:
 
     # Return the first result (since we only sent one input)
     return result[0].model_dump()
-
-
-###########################################
-# Required components to start the server #
-###########################################
-
-agent_server = create_server(agent_type=None)
-app = agent_server.app
-
-
-def main():
-    args = parse_server_args()
-    setup_mlflow()
-    print(
-        f"Single endpoint: POST /invocations on port {args.port} with {args.workers} workers and reload: {args.reload}"
-    )
-
-    agent_server.run(
-        "agent_server.agent:app",  # import string for app defined above to support workers
-        port=args.port,
-        workers=args.workers,
-        reload=args.reload,
-    )
