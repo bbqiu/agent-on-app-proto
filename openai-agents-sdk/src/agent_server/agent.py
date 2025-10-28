@@ -11,12 +11,7 @@ from mlflow.types.responses import (
 )
 
 from agent_server.server import get_obo_workspace_client, invoke, stream
-from agent_server.utils import (
-    DatabricksMCPServerStreamableHttp,
-    MCPServerManager,
-    get_async_openai_client,
-    get_databricks_host_from_env,
-)
+from agent_server.utils import get_async_openai_client, get_databricks_host_from_env
 
 sp_workspace_client = WorkspaceClient()
 databricks_openai_client = get_async_openai_client(sp_workspace_client)
@@ -38,7 +33,7 @@ async def init_mcp_server():
 
 @invoke()
 async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
-    user_workspace_client = get_obo_workspace_client()
+    # user_workspace_client = get_obo_workspace_client()
     async with await init_mcp_server() as mcp_server:
         agent = Agent(
             name="code execution agent",
@@ -53,7 +48,7 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
 
 @stream()
 async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
-    user_workspace_client = get_obo_workspace_client()
+    # user_workspace_client = get_obo_workspace_client()
     async with await init_mcp_server() as mcp_server:
         agent = Agent(
             name="code execution agent",
