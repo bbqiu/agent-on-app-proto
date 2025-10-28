@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 
 # need to import the agent to register the functions with the server
-import agent_server.agent as agent  # noqa: F401
+import agent_server.agent  # noqa: F401
 from agent_server.server import AgentServer, parse_server_args, setup_mlflow
 
 # Load environment variables from .env.local if it exists

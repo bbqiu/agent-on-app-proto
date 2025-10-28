@@ -73,15 +73,15 @@ Common changes to make:
 
 `agent.py` currently contains a Responses API agent. Please modify this file to create your custom agent. In order to work with the agent server provided, inside of `agent.py`, we require you to:
 
-- Call `create_server()` in order to initialize the server.
+- Create an `AgentServer` instance in order to initialize the server.
 
   - If your agent matches one of `ChatCompletions`, `ChatAgent` or `Responses` API, you can use the server's built-in validators by initializing the server with the following task types:
-    - `ChatCompletions`: `create_server("agent/v1/chat")`
-    - `ChatAgent`: `create_server("agent/v2/chat")`
-    - **`Responses`: `create_server("agent/v1/responses")`**
+    - `ChatCompletions`: `AgentServer("agent/v1/chat")`
+    - `ChatAgent`: `AgentServer("agent/v2/chat")`
+    - **`Responses`: `AgentServer("agent/v1/responses")`**
       - This specific example follows the Responses API, matching up with ResponsesAgent from MLflow.
 
-- Create an app module that is importable via some import path like `agent_server.agent:app`. This is used if your FastAPI server has multiple workers.
+- Create an app module that is importable via some import path like `agent_server.start_server:app`. This is used if your FastAPI server has multiple workers.
 - Use `parse_server_args()` to parse the server arguments.
 - Decorate your non-streaming method with `@invoke()` and your streaming method with `@stream()`.
   - Neither is required, but in order for your agent to be served, at least one decorator must be used.
@@ -92,8 +92,9 @@ Common changes to make:
 Very minimal example:
 
 `agent.py`:
+
 ```python
-from agent_server.server import AgentServer, invoke, stream
+from agent_server.server import invoke, stream
 
 @invoke()
 async def non_streaming(request: dict) -> dict:
@@ -102,28 +103,38 @@ async def non_streaming(request: dict) -> dict:
 @stream()
 async def streaming(request: dict) -> AsyncGenerator[dict, None]:
    yield dict
-
-agent_server = AgentServer("agent/v1/responses")
-app = agent_server.app
 ```
 
 `start_server.py`:
+
 ```python
-from agent_server.server import AgentServer, setup_mlflow, parse_server_args
-from agent_server.agent import agent_server
+from dotenv import load_dotenv
+
+# need to import the agent to register the functions with the server
+import agent_server.agent  # noqa: F401
+from agent_server.server import AgentServer, parse_server_args, setup_mlflow
+
+# Load environment variables from .env.local if it exists
+load_dotenv(dotenv_path=".env.local", override=True)
+
+agent_server = AgentServer("agent/v1/responses")
+# define the app as a module level variable to enable multiple workers
+app = agent_server.app  # noqa: F841
+
+args = parse_server_args()
+
+setup_mlflow()
+print(f"Running server on port {args.port} with {args.workers} workers and reload: {args.reload}")
+
 
 def main():
-    args = parse_server_args()
-    setup_mlflow()
+    # to support multiple workers, import the app defined above as a string
     agent_server.run(
-        "agent_server.agent:app",
+        app_import_string="agent_server.start_server:app",
         port=args.port,
         workers=args.workers,
         reload=args.reload,
     )
-
-if __name__ == "__main__":
-    main()
 ```
 
 Common changes to make:
