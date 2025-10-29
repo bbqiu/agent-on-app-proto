@@ -19,7 +19,7 @@ sp_workspace_client = WorkspaceClient()
 databricks_openai_client = get_async_openai_client(sp_workspace_client)
 set_default_openai_client(databricks_openai_client)
 set_default_openai_api("chat_completions")
-set_trace_processors([])
+set_trace_processors([])  # use mlflow for trace processing
 mlflow.openai.autolog()
 
 
