@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 import mlflow
 from agents import Agent, Runner, set_default_openai_api, set_default_openai_client
 from agents.mcp import MCPServerStdio, MCPServerStreamableHttp, MCPServerStreamableHttpParams
+from agents.tracing import set_trace_processors
 from databricks.sdk import WorkspaceClient
 from mlflow.types.responses import (
     ResponsesAgentRequest,
@@ -14,10 +15,11 @@ from agent_server.server import get_obo_workspace_client, invoke, stream
 from agent_server.utils import get_async_openai_client, get_databricks_host_from_env
 
 sp_workspace_client = WorkspaceClient()
-# NOTE: this will work for all databricks models *other* than GPT-OSS, which uses a slightly different API
+# NOTE: this will work for all databricks models OTHER than GPT-OSS, which uses a slightly different API
 databricks_openai_client = get_async_openai_client(sp_workspace_client)
 set_default_openai_client(databricks_openai_client)
 set_default_openai_api("chat_completions")
+set_trace_processors([])
 mlflow.openai.autolog()
 
 
