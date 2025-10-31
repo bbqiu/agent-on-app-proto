@@ -15,6 +15,9 @@ from mlflow.types.responses import (
 from agent_server.utils import get_async_openai_client, get_databricks_host_from_env
 
 sp_workspace_client = WorkspaceClient()
+print(sp_workspace_client.current_user.me())
+print(sp_workspace_client.config.host)
+print(sp_workspace_client.config.token)
 # NOTE: this will work for all databricks models OTHER than GPT-OSS, which uses a slightly different API
 databricks_openai_client = get_async_openai_client(sp_workspace_client)
 set_default_openai_client(databricks_openai_client)
