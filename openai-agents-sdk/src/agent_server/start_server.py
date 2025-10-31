@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
+from mlflow.pyfunc.agent_server import AgentServer, parse_server_args, setup_mlflow
 
 # need to import the agent to register the functions with the server
 import agent_server.agent  # noqa: F401
-from agent_server.server import AgentServer, parse_server_args, setup_mlflow
 
 # Load environment variables from .env.local if it exists
 load_dotenv(dotenv_path=".env.local", override=True)
@@ -25,3 +25,7 @@ def main():
         workers=args.workers,
         reload=args.reload,
     )
+
+
+if __name__ == "__main__":
+    main()

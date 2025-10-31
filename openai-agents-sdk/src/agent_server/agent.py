@@ -5,13 +5,13 @@ from agents import Agent, Runner, set_default_openai_api, set_default_openai_cli
 from agents.mcp import MCPServerStdio, MCPServerStreamableHttp, MCPServerStreamableHttpParams
 from agents.tracing import set_trace_processors
 from databricks.sdk import WorkspaceClient
+from mlflow.pyfunc.agent_server import get_obo_workspace_client, invoke, stream
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
     ResponsesAgentStreamEvent,
 )
 
-from agent_server.server import get_obo_workspace_client, invoke, stream
 from agent_server.utils import get_async_openai_client, get_databricks_host_from_env
 
 sp_workspace_client = WorkspaceClient()
