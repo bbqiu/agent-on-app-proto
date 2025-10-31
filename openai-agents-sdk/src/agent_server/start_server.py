@@ -1,3 +1,5 @@
+import os
+
 from dotenv import load_dotenv
 from mlflow.pyfunc.agent_server import AgentServer, parse_server_args, setup_mlflow
 
@@ -6,6 +8,11 @@ import agent_server.agent  # noqa: F401
 
 # Load environment variables from .env.local if it exists
 load_dotenv(dotenv_path=".env.local", override=True)
+
+print(os.getenv("MLFLOW_AGENT_SERVER_UI_PATH"))
+print(os.getenv("DATABRICKS_HOST"))
+print(os.getenv("DATABRICKS_TOKEN"))
+print(os.getenv("MLFLOW_EXPERIMENT_ID"))
 
 agent_server = AgentServer("agent/v1/responses")
 # define the app as a module level variable to enable multiple workers
