@@ -5,7 +5,7 @@ from agents import Agent, Runner, set_default_openai_api, set_default_openai_cli
 from agents.mcp import MCPServerStdio, MCPServerStreamableHttp, MCPServerStreamableHttpParams
 from agents.tracing import set_trace_processors
 from databricks.sdk import WorkspaceClient
-from mlflow.pyfunc.agent_server import get_obo_workspace_client, invoke, stream
+from mlflow.genai.agent_server import get_user_workspace_client, invoke, stream
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -15,9 +15,6 @@ from mlflow.types.responses import (
 from agent_server.utils import get_async_openai_client, get_databricks_host_from_env
 
 sp_workspace_client = WorkspaceClient()
-print(sp_workspace_client.current_user.me())
-print(sp_workspace_client.config.host)
-print(sp_workspace_client.config.token)
 # NOTE: this will work for all databricks models OTHER than GPT-OSS, which uses a slightly different API
 databricks_openai_client = get_async_openai_client(sp_workspace_client)
 set_default_openai_client(databricks_openai_client)
