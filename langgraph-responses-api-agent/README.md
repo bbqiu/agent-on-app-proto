@@ -4,184 +4,99 @@ This example is a simple agent that follows the [OpenAI Responses API](https://p
 
 Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/flavors/responses-agent-intro/) for more about input and output formats for streaming and non-streaming requests, tracing requirements, and other agent authoring details.
 
-## Local Devloop
+## Get started
 
-### Set up your local environment
+0. **Set up your local environment**
+   Install the latest versions of `uv` (python package manager) and `nvm` (node version manager):
 
-Install the latest versions of `uv` (python package manager) and `nvm` (node version manager):
+   - [`uv` installation docs](https://docs.astral.sh/uv/getting-started/installation/)
+   - [`nvm` installation](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating)
+   - Run the following to use Node 20 LTS:
+     ```bash
+     nvm use 20
+     ```
 
-- [`uv` installation docs](https://docs.astral.sh/uv/getting-started/installation/)
-- [`nvm` installation](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating)
-- Run the following to use Node 20 LTS:
-  ```bash
-  nvm use 20
-  ```
+1. **Create and link an MLflow experiment to your app**
 
-### Create and link an MLflow experiment to your app
+   Create an MLflow experiment in Databricks. Refer to the [MLflow experiments documentation](https://docs.databricks.com/aws/en/mlflow/experiments#create-experiment-from-the-workspace) for more info.
 
-Create an MLflow experiment in Databricks. Refer to the [MLflow experiments documentation](https://docs.databricks.com/aws/en/mlflow/experiments#create-experiment-from-the-workspace) for more info.
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local and fill in your experiment ID
+   # The .env.local file will be automatically loaded when starting the server
+   ```
 
-```bash
-cp .env.example .env.local
-# Edit .env.local and fill in your experiment ID
-# The .env.local file will be automatically loaded when starting the server
-```
+2. **Set up local authentication to Databricks**
 
-### Set up local authentication to Databricks
+   In order to access Databricks resources from your local machine while developing your agent, you need to authenticate with Databricks. Modify `.env.local` with one of the following options:
 
-In order to access Databricks resources from your local machine while developing your agent, you need to authenticate with Databricks. As stated in the [Databricks SDK authentication docs](https://docs.databricks.com/aws/en/dev-tools/sdk-python#authenticate-the-databricks-sdk-for-python-with-your-databricks-account-or-workspace), there are a few ways to authenticate:
+   - **Use a Databricks configuration profile**
 
-- **Use a Databricks configuration profile**
+     Refer to the [configuration profiles documentation](https://docs.databricks.com/aws/en/dev-tools/auth/config-profiles) for more info.
 
-  Refer to the [configuration profiles documentation](https://docs.databricks.com/aws/en/dev-tools/auth/config-profiles) for more info.
+     ```bash
+     databricks configure
+     # Add the configuration profile to your .env.local file
+     # DATABRICKS_CONFIG_PROFILE="DEFAULT"
+     ```
 
-  ```bash
-  databricks configure
-  # Add the configuration profile to your .env.local file
-  # DATABRICKS_CONFIG_PROFILE="DEFAULT"
-  ```
+   - **Use a personal access token (PAT)**
 
-- **Use a personal access token (PAT)**
+     Refer to the [PAT documentation](https://docs.databricks.com/aws/en/dev-tools/auth/pat#databricks-personal-access-tokens-for-workspace-users) for more info.
 
-  Refer to the [PAT documentation](https://docs.databricks.com/aws/en/dev-tools/auth/pat#databricks-personal-access-tokens-for-workspace-users) for more info.
+     ```bash
+     # Add these to your .env.local file
+     # DATABRICKS_HOST="https://host.databricks.com"
+     # DATABRICKS_TOKEN="dapi_token"
+     ```
 
-  ```bash
-  # Add these to your .env.local file
-  # DATABRICKS_HOST="https://host.databricks.com"
-  # DATABRICKS_TOKEN="dapi_token"
-  ```
+   See the [Databricks SDK authentication docs](https://docs.databricks.com/aws/en/dev-tools/sdk-python#authenticate-the-databricks-sdk-for-python-with-your-databricks-account-or-workspace) for more info.
 
-### Modifying the UI
+3. **Modifying your agent**
 
-Note that the UI only works with streamed `response.output_item.done` events from the agent server. Read more in the [MLflow docs for streaming ResponsesAgent output](https://mlflow.org/docs/latest/genai/flavors/responses-agent-intro/#streaming-agent-output).
+   You can check out the [LangGraph documentation](https://docs.langchain.com/oss/python/langgraph/quickstart) for more information on how to edit your own agent.
 
-To run the UI locally while changing it to see live changes, simultaneously run the following two commands in separate terminal windows:
+   The following files are required to host your own agent with the MLflow `AgentServer`:
 
-```bash
-(cd ui && npm run dev)
-uv run start-server
-```
+   - `agent.py`: This file contains your agent logic. It currently contains a Responses API agent. Please modify this file to create your custom agent.
+   - `start_server.py`: This file initializes and runs the MLflow `AgentServer` with agent_type="ResponsesAgent".
 
-Common changes to make:
+   Common changes to make:
 
-- Edit `index.html` to change the UI title and icon.
-- Change the port in `ui/src/api/client.ts` if running on a different port. Note that Databricks Apps serve port 8000 by default, which is why it's set to 8000.
+   - Feel free to add as many files or folders as you want to your agent, just make sure that the script within `pyproject.toml` runs the right script that will start the server and set up MLflow tracing.
+   - To add dependencies to your agent, run `uv add <package_name>` (ex. `uv add "mlflow-skinny[databricks]"`). Refer to the [python pyproject.toml guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#dependencies-and-requirements) for more info.
+   - While we have built-in MLflow tracing when calling the methods annotated with `@invoke()` and `@stream()`, you can also further instrument your own agent. Refer to the [MLflow tracing documentation](https://docs.databricks.com/aws/en/mlflow3/genai/tracing/app-instrumentation/) for more info.
+     - Search for `"start_span"` within `src/agent_server/server.py` for the built-in implementation.
+   - Refer to the Agent Framework ["Author AI Agents in Code" documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent) for more information.
 
-### Modifying your agent
+4. **Testing out your local agent**
 
-#### TODO: update this section with more details about MCP and langgraph
+   Start up the agent server locally:
 
-`agent.py` currently contains a Responses API agent. Please modify this file to create your custom agent. In order to work with the agent server provided, inside of `agent.py`, we require you to:
+   ```bash
+   uv run start-server --reload
 
-- Create an `AgentServer` instance in order to initialize the server.
+   # Other options for the start-server script:
+   uv run start-server --port 8001
+   uv run start-server --workers 4
+   ```
 
-  - If your agent matches one of `ChatCompletions`, `ChatAgent` or `Responses` API, you can use the server's built-in validators by initializing the server with the following task types:
-    - `ChatCompletions`: `AgentServer("agent/v1/chat")`
-    - `ChatAgent`: `AgentServer("agent/v2/chat")`
-    - **`Responses`: `AgentServer("agent/v1/responses")`**
-      - This specific example follows the Responses API, matching up with ResponsesAgent from MLflow.
+   Now you can either query your agent via the built in UI (served by default at http://localhost:8000) or via REST API request:
 
-- Create an app module that is importable via some import path like `agent_server.start_server:app`. This is used if your FastAPI server has multiple workers.
-- Use `parse_server_args()` to parse the server arguments.
-- Decorate your non-streaming method with `@invoke()` and your streaming method with `@stream()`.
-  - Neither is required, but in order for your agent to be served, at least one decorator must be used.
-  - The method(s) can be async or sync, but we recommend async in order to achieve greater request concurrency.
-  - The method decorated with `@invoke()` will be called when requests are made to `/invocations` with `"stream": false"` or without a `"stream"` param in the payload.
-  - The method decorated with `@stream()` will be called when requests are made to `/invocations` with `"stream": true"`.
+   - Example streaming request:
+     ```bash
+     curl -X POST http://localhost:8000/invocations \
+     -H "Content-Type: application/json" \
+     -d '{ "input": [{ "role": "user", "content": "hi" }], "stream": true }'
+     ```
+   - Example non-streaming request:
+     ```bash
+     curl -X POST http://localhost:8000/invocations  \
+     -H "Content-Type: application/json" \
+     -d '{ "input": [{ "role": "user", "content": "hi" }] }'
+     ```
 
-Very minimal example:
-
-`agent.py`:
-
-```python
-from agent_server.server import invoke, stream
-
-@invoke()
-async def non_streaming(request: dict) -> dict:
-   return request
-
-@stream()
-async def streaming(request: dict) -> AsyncGenerator[dict, None]:
-   yield request
-```
-
-`start_server.py`:
-
-```python
-from dotenv import load_dotenv
-
-# need to import the agent to register the functions with the server
-import agent_server.agent  # noqa: F401
-from agent_server.server import AgentServer, parse_server_args, setup_mlflow
-
-# Load environment variables from .env.local if it exists
-load_dotenv(dotenv_path=".env.local", override=True)
-
-agent_server = AgentServer("agent/v1/responses")
-# define the app as a module level variable to enable multiple workers
-app = agent_server.app  # noqa: F841
-
-args = parse_server_args()
-
-setup_mlflow()
-print(f"Running server on port {args.port} with {args.workers} workers and reload: {args.reload}")
-
-
-def main():
-    # to support multiple workers, import the app defined above as a string
-    agent_server.run(
-        app_import_string="agent_server.start_server:app",
-        port=args.port,
-        workers=args.workers,
-        reload=args.reload,
-    )
-```
-
-Common changes to make:
-
-- Feel free to add as many files or folders as you want to your agent, just make sure that the script within `pyproject.toml` runs the right script that will start the server and set up MLflow tracing.
-- To add dependencies to your agent, run `uv add <package_name>` (ex. `uv add "mlflow-skinny[databricks]"`). Refer to the [python pyproject.toml guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#dependencies-and-requirements) for more info.
-- While we have built-in MLflow tracing when calling the methods annotated with `@invoke()` and `@stream()`, you can also further instrument your own agent. Refer to the [MLflow tracing documentation](https://docs.databricks.com/aws/en/mlflow3/genai/tracing/app-instrumentation/) for more info.
-  - Search for `"start_span"` within `src/agent_server/server.py` for the built-in implementation.
-- Refer to the Agent Framework ["Author AI Agents in Code" documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent) for more information.
-
-### Modifying the server
-
-You can modify the server to your liking. Refer to the [server.py](src/agent_server/server.py) file for more info. Run the `start-server` script to start the server locally:
-
-```bash
-uv run start-server
-uv run start-server --port 8001
-uv run start-server --workers 4
-# To hot-reload the server on code changes, you can use the --reload command. Note that this doesn't work with multiple workers.
-uv run start-server --reload
-```
-
-### Testing out your local agent
-
-Build the UI and start up the agent server locally:
-
-```bash
-(cd ui && npm run build) # build the UI to be served statically
-uv run start-server --reload
-```
-
-Now you can either query your agent via the built in UI (served by default at http://localhost:8000) or via REST API request:
-
-- Example streaming request:
-  ```bash
-  curl -X POST http://localhost:8000/invocations \
-   -H "Content-Type: application/json" \
-   -d '{ "input": [{ "role": "user", "content": "hi" }], "stream": true }'
-  ```
-- Example non-streaming request:
-  ```bash
-  curl -X POST http://localhost:8000/invocations  \
-   -H "Content-Type: application/json" \
-   -d '{ "input": [{ "role": "user", "content": "hi" }] }'
-  ```
-
-### Evaluating your agent
+## Evaluating your agent
 
 Evaluate your agent by calling the invoke function you defined for the agent locally.
 
@@ -214,17 +129,8 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
 2. **Set the value of `MLFLOW_EXPERIMENT_ID` in `app.yaml`**
 
+   The `MLFLOW_EXPERIMENT_ID` is the ID of the MLflow experiment you created in step 1. Open `app.yaml` for other env vars.
    Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
-
-   ```yml
-   env:
-     - name: MLFLOW_TRACKING_URI
-       value: "databricks"
-     - name: MLFLOW_REGISTRY_URI
-       value: "databricks-uc"
-     - name: MLFLOW_EXPERIMENT_ID
-       value: "" # fill in with your experiment ID
-   ```
 
 3. **Build the UI**
 
@@ -284,10 +190,5 @@ For future updates to the agent, you only need to sync and redeploy your agent. 
 
 - For a streaming response, I see a 200 OK in the logs, but an error in the actual stream. What's going on?
   - This is expected. The server will return a 200 OK if the stream is set up without error, but any errors during the stream will not change the initial status code.
-- How is my agent being versioned in MLflow?
-  - In `setup_mlflow()` from `src/agent_server/utils.py`, we get the current git commit hash and use it to create a logged model, and all traces from that version of the agent will be logged to the corresponding model in MLflow on Databricks.
-- How do I register my logged model to the UC model registry?
-  - Fill in the catalog, schema, and model name for your UC model in `setup_mlflow()` from `src/agent_server/utils.py`.
-  - Call `setup_mlflow(register_model_to_uc=True)` within the startup script in `main()` from `src/agent_server/agent.py`.
 - When querying my agent, I get a 302 error. What's going on?
   - Please make sure you are using an OAuth token to query your agent. You cannot use a PAT to query your agent.
