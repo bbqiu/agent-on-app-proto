@@ -1,15 +1,21 @@
 import os
-from typing import Any, AsyncGenerator, AsyncIterator, Iterator, Optional
+from typing import Any, AsyncGenerator, AsyncIterator, Optional
 
 from databricks.sdk import WorkspaceClient
 from httpx import AsyncClient, Auth, Request
 from langchain.messages import AIMessageChunk
+from mlflow.genai.agent_server import get_request_headers
 from mlflow.types.responses import (
     ResponsesAgentStreamEvent,
     create_text_delta,
     output_to_responses_items_stream,
 )
 from openai import AsyncOpenAI
+
+
+def get_user_workspace_client() -> WorkspaceClient:
+    token = get_request_headers().get("x-forwarded-access-token")
+    return WorkspaceClient(token=token, auth_type="pat")
 
 
 def get_databricks_host_from_env() -> Optional[str]:

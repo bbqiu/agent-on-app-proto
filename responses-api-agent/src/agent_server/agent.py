@@ -7,6 +7,7 @@ import mlflow
 from databricks.sdk import WorkspaceClient
 from databricks_openai import UCFunctionToolkit, VectorSearchRetrieverTool
 from mlflow.entities import SpanType
+from mlflow.genai.agent_server import invoke, stream
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.types.responses import (
     ResponsesAgentRequest,
@@ -16,8 +17,6 @@ from mlflow.types.responses import (
 from openai import OpenAI
 from pydantic import BaseModel
 from unitycatalog.ai.core.base import get_uc_function_client
-
-from agent_server.server import invoke, stream
 
 ############################################
 # Define your LLM endpoint and system prompt

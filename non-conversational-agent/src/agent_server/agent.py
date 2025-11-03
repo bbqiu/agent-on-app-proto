@@ -7,10 +7,9 @@ import os
 import mlflow
 from databricks.sdk import WorkspaceClient
 from mlflow.entities import SpanType
+from mlflow.genai.agent_server import invoke
 from mlflow.pyfunc import PythonModel
 from pydantic import BaseModel, Field
-
-from agent_server.server import invoke
 
 
 class Question(BaseModel):

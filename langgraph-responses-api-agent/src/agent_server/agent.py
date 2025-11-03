@@ -5,6 +5,7 @@ from databricks.sdk import WorkspaceClient
 from databricks_langchain import ChatDatabricks
 from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from mlflow.genai.agent_server import invoke, stream
 from mlflow.types.responses import (
     ResponsesAgentRequest,
     ResponsesAgentResponse,
@@ -12,8 +13,11 @@ from mlflow.types.responses import (
     to_chat_completions_input,
 )
 
-from agent_server.server import get_obo_workspace_client, invoke, stream
-from agent_server.utils import get_databricks_host_from_env, process_agent_astream_events
+from agent_server.utils import (
+    get_databricks_host_from_env,
+    get_user_workspace_client,
+    process_agent_astream_events,
+)
 
 mlflow.langchain.autolog()
 sp_workspace_client = WorkspaceClient()
@@ -51,7 +55,7 @@ async def non_streaming(request: ResponsesAgentRequest) -> ResponsesAgentRespons
 async def streaming(
     request: ResponsesAgentRequest,
 ) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
-    # obo_workspace_client = get_obo_workspace_client()
+    # user_workspace_client = get_user_workspace_client()
     agent = await init_agent()
     messages = {"messages": to_chat_completions_input([i.model_dump() for i in request.input])}
 
