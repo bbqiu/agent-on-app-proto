@@ -52,24 +52,7 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
 
    See the [Databricks SDK authentication docs](https://docs.databricks.com/aws/en/dev-tools/sdk-python#authenticate-the-databricks-sdk-for-python-with-your-databricks-account-or-workspace) for more info.
 
-3. **Modifying your agent**
-
-   You can check out the [LangGraph documentation](https://docs.langchain.com/oss/python/langgraph/quickstart) for more information on how to edit your own agent.
-
-   The following files are required to host your own agent with the MLflow `AgentServer`:
-
-   - `agent.py`: This file contains your agent logic. It currently contains a Responses API agent. Please modify this file to create your custom agent.
-   - `start_server.py`: This file initializes and runs the MLflow `AgentServer` with agent_type="ResponsesAgent".
-
-   Common changes to make:
-
-   - Feel free to add as many files or folders as you want to your agent, just make sure that the script within `pyproject.toml` runs the right script that will start the server and set up MLflow tracing.
-   - To add dependencies to your agent, run `uv add <package_name>` (ex. `uv add "mlflow-skinny[databricks]"`). Refer to the [python pyproject.toml guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#dependencies-and-requirements) for more info.
-   - While we have built-in MLflow tracing when calling the methods annotated with `@invoke()` and `@stream()`, you can also further instrument your own agent. Refer to the [MLflow tracing documentation](https://docs.databricks.com/aws/en/mlflow3/genai/tracing/app-instrumentation/) for more info.
-     - Search for `"start_span"` within `src/agent_server/server.py` for the built-in implementation.
-   - Refer to the Agent Framework ["Author AI Agents in Code" documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent) for more information.
-
-4. **Testing out your local agent**
+3. **Testing out your local agent**
 
    Start up the agent server locally:
 
@@ -96,6 +79,23 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
      -d '{ "input": [{ "role": "user", "content": "hi" }] }'
      ```
 
+4. **Modifying your agent**
+
+   You can check out the [LangGraph documentation](https://docs.langchain.com/oss/python/langgraph/quickstart) for more information on how to edit your own agent.
+
+   The following files are required to host your own agent with the MLflow `AgentServer`:
+
+   - `agent.py`: This file contains your agent logic. It currently contains a Responses API agent. Please modify this file to create your custom agent.
+   - `start_server.py`: This file initializes and runs the MLflow `AgentServer` with agent_type="ResponsesAgent".
+
+   Common changes to make:
+
+   - Feel free to add as many files or folders as you want to your agent, just make sure that the script within `pyproject.toml` runs the right script that will start the server and set up MLflow tracing.
+   - To add dependencies to your agent, run `uv add <package_name>` (ex. `uv add "mlflow-skinny[databricks]"`). Refer to the [python pyproject.toml guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#dependencies-and-requirements) for more info.
+   - While we have built-in MLflow tracing when calling the methods annotated with `@invoke()` and `@stream()`, you can also further instrument your own agent. Refer to the [MLflow tracing documentation](https://docs.databricks.com/aws/en/mlflow3/genai/tracing/app-instrumentation/) for more info.
+     - Search for `"start_span"` within `src/agent_server/server.py` for the built-in implementation.
+   - Refer to the Agent Framework ["Author AI Agents in Code" documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/author-agent) for more information.
+
 ## Evaluating your agent
 
 Evaluate your agent by calling the invoke function you defined for the agent locally.
@@ -121,11 +121,11 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
 1. **Set up authentication to Databricks resources**
 
-   **App Authentication via Service Principal (SP)**: To access resources like serving endpoints, genie spaces, SQL warehouses, and lakebase instances, you can click `edit` on your app home page to grant the App's SP permission. Refer to the [Databricks Apps resources documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources) for more info.
+   **App Authentication via Service Principal (SP)**: To access resources like serving endpoints, genie spaces, MLflow experiments, UC Functions, and Vector Search Indexes, you can click `edit` on your app home page to grant the App's SP permission. Refer to the [Databricks Apps resources documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources) for more info.
 
-   For resources that are not supported yet, refer to the [Agent Framework authentication documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/deploy-agent#automatic-authentication-passthrough) for the correct permission level to grant to your app SP. MLflow experiments, UC connections, UC functions, and vector search indexes will be added to the UI soon.
+   For resources that are not supported yet, refer to the [Agent Framework authentication documentation](https://docs.databricks.com/aws/en/generative-ai/agent-framework/deploy-agent#automatic-authentication-passthrough) for the correct permission level to grant to your app SP.
 
-   **On-behalf-of (OBO) User Authentication**: Use `get_obo_workspace_client()` from `agent_server.server` to authenticate as the requesting user instead of the app service principal. Refer to the [OBO authentication documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth?language=Streamlit#retrieve-user-authorization-credentials) for more info.
+   **On-behalf-of (OBO) User Authentication**: Use `get_user_workspace_client()` from `agent_server.utils` to authenticate as the requesting user instead of the app service principal. Refer to the [OBO authentication documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth?language=Streamlit#retrieve-user-authorization-credentials) for more info.
 
 2. **Set the value of `MLFLOW_EXPERIMENT_ID` in `app.yaml`**
 
