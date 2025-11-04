@@ -1,4 +1,3 @@
-import os
 from typing import Any, AsyncGenerator, AsyncIterator, Optional
 
 from databricks.sdk import WorkspaceClient
@@ -19,11 +18,6 @@ def get_user_workspace_client() -> WorkspaceClient:
 
 
 def get_databricks_host_from_env() -> Optional[str]:
-    host = os.getenv("DATABRICKS_HOST")
-    if host.startswith("https://"):
-        return host
-    elif host is not None:
-        return f"https://{host}"
     try:
         w = WorkspaceClient()
         return w.config.host

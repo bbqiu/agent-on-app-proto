@@ -9,4 +9,4 @@ env:
   - name: MLFLOW_AGENT_SERVER_UI_PATH
     value: "./ui/static"
   - name: MLFLOW_EXPERIMENT_ID
-    value: "2105113615535138" # fill in with your experiment ID
+    value: "263015846113338" # fill in with your experiment ID

@@ -6,5 +6,7 @@ env:
     value: "databricks"
   - name: MLFLOW_REGISTRY_URI
     value: "databricks-uc"
+  - name: MLFLOW_AGENT_SERVER_UI_PATH
+    value: "./ui/static"
   - name: MLFLOW_EXPERIMENT_ID
     value: "" # fill in with your experiment ID

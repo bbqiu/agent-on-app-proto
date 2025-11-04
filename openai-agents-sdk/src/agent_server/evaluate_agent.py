@@ -1,7 +1,9 @@
 import mlflow
+from mlflow.genai.agent_server import get_invoke_function
 from mlflow.genai.scorers import RelevanceToQuery, Safety
-from agent_server import agent # need to import agent for our @invoke-registered function to be found
-from agent_server.server import get_invoke_function
+
+# need to import agent for our @invoke-registered function to be found
+from agent_server import agent  # noqa: F401
 
 # Create your evaluation dataset
 # Refer to documentation for evaluations:
@@ -22,10 +24,11 @@ eval_dataset = [
 # Get the invoke function that was registered via @invoke decorator in your agent
 invoke_fn = get_invoke_function()
 
+
 def evaluate():
-    assert (
-        invoke_fn is not None
-    ), "No @invoke-registered function found. Ensure your predict function is decorated with @invoke()."
+    assert invoke_fn is not None, (
+        "No @invoke-registered function found. Ensure your predict function is decorated with @invoke()."
+    )
 
     mlflow.genai.evaluate(
         data=eval_dataset,
