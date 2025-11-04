@@ -16,17 +16,23 @@ agent_server = AgentServer("ResponsesAgent")
 # Define the app as a module level variable to enable multiple workers
 app = agent_server.app  # noqa: F841
 
-ui_dist_path = Path(os.getenv("MLFLOW_AGENT_SERVER_UI_PATH")).resolve()
-if ui_dist_path.exists():
-    app.mount("/assets", StaticFiles(directory=str(ui_dist_path / "assets")), name="assets")
+# ui_dist_path = Path(os.getenv("MLFLOW_AGENT_SERVER_UI_PATH")).resolve()
+# if ui_dist_path.exists():
+#     app.mount("/assets", StaticFiles(directory=str(ui_dist_path / "assets")), name="assets")
 
-    from fastapi.responses import FileResponse
+#     # TODO: make a route handler that redirects to the express server
 
-    @app.get("/")
-    async def serve_ui():
-        return FileResponse(str(ui_dist_path / "index.html"))
-else:
-    print(f"UI dist folder not found at {ui_dist_path}. UI will not be served.")
+#     from fastapi.responses import FileResponse
+
+#     @app.get("/api")
+#     <<<
+
+#     @app.get("/")
+#     async def serve_ui():
+#         # redirect to the express server somehow
+#         pass
+# else:
+#     print(f"UI dist folder not found at {ui_dist_path}. UI will not be served.")
 
 setup_mlflow_git_based_version_tracking()
 
