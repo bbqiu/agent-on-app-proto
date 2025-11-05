@@ -10,3 +10,5 @@ env:
     value: "http://localhost:8000/invocations"
   - name: MLFLOW_EXPERIMENT_ID
     value: "263015846113338" # fill in with your experiment ID
+  - name: DATABRICKS_SERVING_ENDPOINT # remove soon
+    value: "databricks-gpt-oss-120b" # FMAPI
