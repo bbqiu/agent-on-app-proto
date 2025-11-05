@@ -8,7 +8,7 @@ BACKEND_PID=$!
 # Start frontend in background
 echo "Starting frontend..."
 cd e2e-chatbot-app-next
-npm install
+npm install --omit=dev
 npm run build
 npm run start &
 FRONTEND_PID=$!

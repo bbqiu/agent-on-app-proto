@@ -12,7 +12,6 @@ env:
   - name: API_PROXY
     value: "http://localhost:8000/invocations"
   - name: MLFLOW_EXPERIMENT_ID
-    value: "1021971371025173" # fill in with your experiment ID
-  - name: DATABRICKS_SERVING_ENDPOINT # remove soon
-    value: "databricks-gpt-oss-120b" # FMAPI
+    # value: "1021971371025173" # fill in with your experiment ID
+    value: "2105113615535138" # fill in with your experiment ID
 
