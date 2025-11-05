@@ -23,14 +23,15 @@ proxy_client = httpx.AsyncClient(timeout=300.0)
 
 async def proxy_to_localhost(request: Request, path: str):
     """
-    Catch-all route that proxies requests to localhost:3000
+    Catch-all route that proxies requests to localhost:{proxy_port}
     Only triggered for paths not already handled by MLflow routes
     """
+    proxy_port = os.getenv("CHAT_APP_PORT", "3000")
     try:
         # Build the target URL
-        target_url = f"http://localhost:3000/{path}"
+        target_url = f"http://localhost:{proxy_port}/{path}"
 
-        print("Proxying request to localhost:3000", target_url)
+        print(f"Proxying request to localhost:{proxy_port}", target_url)
 
         # Prepare headers (exclude hop-by-hop headers)
         headers = dict(request.headers)
@@ -72,13 +73,13 @@ async def proxy_to_localhost(request: Request, path: str):
 
     except httpx.ConnectError:
         return Response(
-            content="Service at localhost:3000 is not available",
+            content=f"Service at localhost:{proxy_port} is not available",
             status_code=502,
             media_type="text/plain",
         )
     except httpx.TimeoutException:
         return Response(
-            content="Request to localhost:3000 timed out",
+            content=f"Request to localhost:{proxy_port} timed out",
             status_code=504,
             media_type="text/plain",
         )
