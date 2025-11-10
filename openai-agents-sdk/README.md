@@ -31,7 +31,7 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
    After logging in, set the `DATABRICKS_CONFIG_PROFILE` environment variable in your .env.local file to the profile you used to authenticate.
 
    ```bash
-   DATABRICKS_CONFIG_PROFILE="DEFAULT"
+   DATABRICKS_CONFIG_PROFILE="DEFAULT" # change to the profile name you chose
    ```
 
    - **Use a personal access token (PAT)**
