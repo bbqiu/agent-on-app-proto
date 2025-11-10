@@ -51,10 +51,10 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
    To enable MLflow tracing and version tracking, create an MLflow experiment in Databricks.
 
    - **Automatic setup (Recommended)**
-     Run the `setup.sh` script to automatically create the MLflow experiment and link it to your app. This will create a new experiment in your workspace and update the `MLFLOW_EXPERIMENT_ID` in your `.env.local` (for local testing) and `app.yaml` (for deployment) files.
+     Run the `setup-mlflow.sh` script to automatically create the MLflow experiment and link it to your app. This will create a new experiment in your workspace and update the `MLFLOW_EXPERIMENT_ID` in your `.env.local` (for local testing) and `app.yaml` (for deployment) files.
 
      ```bash
-     ./setup.sh
+     ./setup-mlflow.sh
      ```
 
    - **Manual setup**
