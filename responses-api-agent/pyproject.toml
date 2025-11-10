@@ -12,13 +12,9 @@ dependencies = [
     "uvicorn>=0.34.2",
     "mlflow>=3.4.0",
     "databricks-openai>=0.6.1",
-    "mlflow>=3.6.0rc0",
+    "mlflow>=3.6.0",
     "dotenv",
 ]
-
-
-[tool.uv]
-prerelease = "allow"
 
 [build-system]
 requires = ["hatchling"]
