@@ -1,6 +1,9 @@
+import asyncio
+
 import mlflow
 from mlflow.genai.agent_server import get_invoke_function
 from mlflow.genai.scorers import RelevanceToQuery, Safety
+from mlflow.types.responses import ResponsesAgentRequest, ResponsesAgentResponse
 
 # need to import agent for our @invoke-registered function to be found
 from agent_server import agent  # noqa: F401
@@ -23,15 +26,24 @@ eval_dataset = [
 
 # Get the invoke function that was registered via @invoke decorator in your agent
 invoke_fn = get_invoke_function()
+assert invoke_fn is not None, (
+    "No function registered with the `@invoke` decorator found."
+    "Ensure you have a function decorated with `@invoke()`."
+)
+
+# if invoke function is async, then we need to wrap it in a sync function
+if asyncio.iscoroutinefunction(invoke_fn):
+
+    def sync_invoke_fn(request: dict) -> ResponsesAgentResponse:
+        req = ResponsesAgentRequest(**request)
+        return asyncio.run(invoke_fn(req))
+else:
+    sync_invoke_fn = invoke_fn
 
 
 def evaluate():
-    assert invoke_fn is not None, (
-        "No @invoke-registered function found. Ensure your predict function is decorated with @invoke()."
-    )
-
     mlflow.genai.evaluate(
         data=eval_dataset,
-        predict_fn=invoke_fn,
+        predict_fn=sync_invoke_fn,
         scorers=[RelevanceToQuery(), Safety()],
     )
