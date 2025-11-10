@@ -16,29 +16,23 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
      nvm use 20
      ```
 
-1. **Create and link an MLflow experiment to your app**
-
-   Create an MLflow experiment in Databricks. Refer to the [MLflow experiments documentation](https://docs.databricks.com/aws/en/mlflow/experiments#create-experiment-from-the-workspace) for more info.
-
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local and fill in your experiment ID
-   # The .env.local file will be automatically loaded when starting the server
-   ```
-
-2. **Set up local authentication to Databricks**
+1. **Set up local authentication to Databricks**
 
    In order to access Databricks resources from your local machine while developing your agent, you need to authenticate with Databricks. Modify `.env.local` with one of the following options:
 
-   - **Use a Databricks configuration profile**
+   - **Use OAuth via the Databricks CLI (Recommended)**
 
-     Refer to the [configuration profiles documentation](https://docs.databricks.com/aws/en/dev-tools/auth/config-profiles) for more info.
+     Authenticate with Databricks using the CLI. Refer to the [CLI OAuth documentation](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#oauth-user-to-machine-u2m-authentication) for more info.
 
      ```bash
-     databricks configure
-     # Add the configuration profile to your .env.local file
-     # DATABRICKS_CONFIG_PROFILE="DEFAULT"
+     databricks auth login
      ```
+
+   After logging in, set the `DATABRICKS_CONFIG_PROFILE` environment variable in your .env.local file to the profile you used to authenticate.
+
+   ```bash
+   DATABRICKS_CONFIG_PROFILE="DEFAULT" # change to the profile name you chose
+   ```
 
    - **Use a personal access token (PAT)**
 
@@ -51,6 +45,34 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
      ```
 
    See the [Databricks SDK authentication docs](https://docs.databricks.com/aws/en/dev-tools/sdk-python#authenticate-the-databricks-sdk-for-python-with-your-databricks-account-or-workspace) for more info.
+
+2. **Create and link an MLflow experiment to your app**
+
+   To enable MLflow tracing and version tracking, create an MLflow experiment in Databricks.
+
+   - **Automatic setup (Recommended)**
+     Run the `setup-mlflow.sh` script to automatically create the MLflow experiment and link it to your app. This will create a new experiment in your workspace and update the `MLFLOW_EXPERIMENT_ID` in your `.env.local` (for local testing) and `app.yaml` (for deployment) files.
+
+     ```bash
+     ./setup-mlflow.sh
+     ```
+
+   - **Manual setup**
+     Create the MLflow experiment manually via the CLI.
+
+     ```bash
+     DATABRICKS_USERNAME=$(databricks current-user me | jq -r .userName)
+     databricks experiments create-experiment /Users/$DATABRICKS_USERNAME/agents-on-apps
+     ```
+
+     Make a copy of `.env.example` to `.env.local` and update the `MLFLOW_EXPERIMENT_ID` in your `.env.local` file with the experiment ID you created. The `.env.local` file will be automatically loaded when starting the server.
+
+     ```bash
+     cp .env.example .env.local
+     # Edit .env.local and fill in your experiment ID
+     ```
+
+   Refer to the [MLflow experiments documentation](https://docs.databricks.com/aws/en/mlflow/experiments#create-experiment-from-the-workspace) for more info.
 
 3. **Testing out your local agent**
 
