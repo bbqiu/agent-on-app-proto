@@ -195,18 +195,42 @@ if [ $PROFILES_EXIT_CODE -eq 0 ] && [ -n "$EXISTING_PROFILES" ]; then
 
     if [ $PROFILE_TEST -eq 0 ]; then
         echo "✓ Successfully validated profile '$PROFILE_NAME'"
-
-        # Update .env.local with the profile name
-        if grep -q "DATABRICKS_CONFIG_PROFILE=" .env.local; then
-            sed -i '' "s/DATABRICKS_CONFIG_PROFILE=.*/DATABRICKS_CONFIG_PROFILE=$PROFILE_NAME/" .env.local
-        else
-            echo "DATABRICKS_CONFIG_PROFILE=$PROFILE_NAME" >> .env.local
-        fi
-        echo "✓ Databricks profile '$PROFILE_NAME' saved to .env.local"
     else
-        echo "Error: Profile '$PROFILE_NAME' authentication failed or does not exist"
-        exit 1
+        # Profile exists but isn't authenticated - prompt to authenticate
+        echo "Profile '$PROFILE_NAME' is not authenticated."
+        echo "Authenticating profile '$PROFILE_NAME'..."
+        echo "You will be prompted to log in to Databricks in your browser."
+        echo
+
+        # Temporarily disable exit on error for the auth command
+        set +e
+
+        # Run auth login with the profile name and capture output while still showing it to the user
+        AUTH_LOG=$(mktemp)
+        databricks auth login --profile "$PROFILE_NAME" 2>&1 | tee "$AUTH_LOG"
+        AUTH_EXIT_CODE=$?
+
+        set -e
+
+        if [ $AUTH_EXIT_CODE -eq 0 ]; then
+            echo "✓ Successfully authenticated profile '$PROFILE_NAME'"
+            # Clean up temp file
+            rm -f "$AUTH_LOG"
+        else
+            # Clean up temp file
+            rm -f "$AUTH_LOG"
+            echo "Error: Profile '$PROFILE_NAME' authentication failed"
+            exit 1
+        fi
     fi
+
+    # Update .env.local with the profile name
+    if grep -q "DATABRICKS_CONFIG_PROFILE=" .env.local; then
+        sed -i '' "s/DATABRICKS_CONFIG_PROFILE=.*/DATABRICKS_CONFIG_PROFILE=$PROFILE_NAME/" .env.local
+    else
+        echo "DATABRICKS_CONFIG_PROFILE=$PROFILE_NAME" >> .env.local
+    fi
+    echo "✓ Databricks profile '$PROFILE_NAME' saved to .env.local"
 else
     # No profiles exist - create default one
     echo "No existing profiles found. Setting up Databricks authentication..."
