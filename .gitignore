@@ -20,7 +20,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ needed for UI code to not get ignored
 lib64/
 parts/
 sdist/
