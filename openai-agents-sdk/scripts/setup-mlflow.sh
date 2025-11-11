@@ -3,10 +3,14 @@ set -e
 
 echo "Setting up MLflow experiment and configuration files..."
 
-# Copy .env.example to .env.local
-echo "Copying .env.example to .env.local..."
-cp .env.example .env.local
-echo
+# Copy .env.example to .env.local if it doesn't exist
+if [ ! -f ".env.local" ]; then
+    echo "Copying .env.example to .env.local..."
+    cp .env.example .env.local
+    echo
+else
+    echo ".env.local already exists, skipping copy..."
+fi
 
 # Get current Databricks username
 echo "Getting Databricks username..."

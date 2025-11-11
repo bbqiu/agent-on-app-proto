@@ -61,6 +61,7 @@ async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, Non
         messages = [i.model_dump() for i in request.input]
         result = Runner.run_streamed(agent, input=messages)
 
+        # TODO: fix the IDs here somehow
         async for event in result.stream_events():
             if event.type == "raw_response_event":
                 yield event.data.model_dump()

@@ -4,6 +4,19 @@ This example is a simple agent that follows the [OpenAI Responses API](https://p
 
 Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/flavors/responses-agent-intro/) for more about input and output formats for streaming and non-streaming requests, tracing requirements, and other agent authoring details.
 
+## Quick start
+
+Run the `./scripts/quickstart.sh` script to quickly set up your local environment and start the agent server.
+
+This script will:
+
+- check your UV and nvm installations
+- set up databricks auth if you don't already have it setup
+
+```bash
+./scripts/quickstart.sh
+```
+
 ## Get started
 
 0. **Set up your local environment**
