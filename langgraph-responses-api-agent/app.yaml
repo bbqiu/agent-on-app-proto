@@ -1,4 +1,4 @@
-command: ["uv", "run", "start-server"]
+command: ["/bin/bash", "start-app.sh"]
 # databricks apps listen by default on port 8000
 
 env:
@@ -6,7 +6,7 @@ env:
     value: "databricks"
   - name: MLFLOW_REGISTRY_URI
     value: "databricks-uc"
-  - name: MLFLOW_AGENT_SERVER_UI_PATH
-    value: "./ui/static"
+  - name: API_PROXY
+    value: "http://localhost:8000/invocations"
   - name: MLFLOW_EXPERIMENT_ID
-    value: "" # TODO: fill in with your experiment ID
+    value: "2193648869551434" # TODO: fill in with your experiment ID
