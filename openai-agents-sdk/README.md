@@ -19,6 +19,14 @@ This script will:
 ./scripts/quickstart.sh
 ```
 
+After the development is setup, you can start the agent server and the chat app locally with:
+
+```bash
+./scripts/start-app.sh
+```
+
+This will start the agent server and the chat app at http://localhost:8000.
+
 ## Manual local development loop setup
 
 1. **Set up your local environment**
