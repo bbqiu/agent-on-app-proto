@@ -1,11 +1,15 @@
 #!/bin/bash
 
 # check if UV and nvm are installed or not
+# optimally, use brew
+#    - [`uv` installation docs](https://docs.astral.sh/uv/getting-started/installation/)
+#    - [`nvm` installation](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating)
+#    - [`databricks CLI` installation](https://docs.databricks.com/aws/en/dev-tools/cli/install)
 # install UV and nvm for them if they don't have it
 # set default uv python version to 3.10
 # run `nvm use 20`
 
-# TODO: set up databricks auth for them
+# TODO: set up databricks auth for them - https://docs.databricks.com/aws/en/dev-tools/cli/install
 # check if databricks cli is installed or not (databricks -v doesn't error out)
 # install the databricks CLI either via homebrew or curl if homebrew fails
 # brew tap databricks/tap
