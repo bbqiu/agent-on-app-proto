@@ -20,76 +20,21 @@ proxy_client = httpx.AsyncClient(timeout=300.0)
 
 
 async def proxy_to_localhost(request: Request, path: str):
-    """
-    Catch-all route that proxies requests to localhost:{proxy_port}
-    Only triggered for paths not already handled by MLflow routes
-    """
-    proxy_port = os.getenv("CHAT_APP_PORT", "3000")
     try:
-        # Build the target URL
-        target_url = f"http://localhost:{proxy_port}/{path}"
-
-        print(f"Proxying request to localhost:{proxy_port}", target_url)
-
-        # Prepare headers (exclude hop-by-hop headers)
-        headers = dict(request.headers)
-        headers_to_remove = ["host", "content-length", "connection", "upgrade"]
-        for header in headers_to_remove:
-            headers.pop(header, None)
-
-        # Get query parameters
-        query_params = str(request.query_params) if request.query_params else None
-        if query_params:
-            target_url += f"?{query_params}"
-
-        # Get request body for non-GET requests
-        body = None
-        if request.method in ["POST", "PUT", "PATCH"]:
-            body = await request.body()
-
-        # Make the proxy request
         proxy_response = await proxy_client.request(
             method=request.method,
-            url=target_url,
-            headers=headers,
-            content=body,
+            url=f"http://localhost:{os.getenv('CHAT_APP_PORT', '3000')}/{path}",
+            params=dict(request.query_params),
+            headers={k: v for k, v in request.headers.items() if k.lower() not in ["host"]},
+            content=await request.body(),
         )
-
-        # Prepare response headers (exclude hop-by-hop headers)
-        response_headers = dict(proxy_response.headers)
-        response_headers_to_remove = ["content-length", "connection", "transfer-encoding"]
-        for header in response_headers_to_remove:
-            response_headers.pop(header, None)
-
-        # Return the proxied response
-        return Response(
-            content=proxy_response.content,
-            status_code=proxy_response.status_code,
-            headers=response_headers,
-            media_type=proxy_response.headers.get("content-type"),
-        )
-
+        return Response(proxy_response.content, proxy_response.status_code)
     except httpx.ConnectError:
-        return Response(
-            content=f"Service at localhost:{proxy_port} is not available",
-            status_code=502,
-            media_type="text/plain",
-        )
-    except httpx.TimeoutException:
-        return Response(
-            content=f"Request to localhost:{proxy_port} timed out",
-            status_code=504,
-            media_type="text/plain",
-        )
+        return Response("Service unavailable", status_code=503, media_type="text/plain")
     except Exception as e:
-        return Response(
-            content=f"Proxy error: {str(e)}",
-            status_code=500,
-            media_type="text/plain",
-        )
+        return Response(f"Proxy error: {str(e)}", status_code=502, media_type="text/plain")
 
 
-# Register the catch-all proxy route
 app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])(
     proxy_to_localhost
 )
