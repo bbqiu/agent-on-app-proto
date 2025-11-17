@@ -1,6 +1,4 @@
 #!/bin/bash
-set -e  # Exit on any error
-set -o pipefail  # Exit on error in any part of a pipeline
 
 # Load environment variables from .env.local if it exists
 if [ -f ".env.local" ]; then
@@ -24,7 +22,7 @@ if [ ! -d "e2e-chatbot-app-next" ]; then
         echo "Cloned using SSH"
     else
         echo "ERROR: Failed to clone repository."
-        echo "Please manually download the folder from:"
+        echo "Please manually download the folder by going to the following link:"
         echo "  https://download-directory.github.io/?url=https://github.com/databricks/app-templates/tree/main/e2e-chatbot-app-next"
         echo "Then unzip it in this directory and re-run `./scripts/start-app.sh`."
         exit 1
@@ -55,20 +53,5 @@ cleanup() {
 # Trap cleanup function on script termination
 trap cleanup SIGINT SIGTERM
 
-# Wait for any process to exit
-wait -n
-
-# Capture the exit code of the first process that exits
-EXIT_CODE=$?
-
-# If any process failed, kill the others and exit with that code
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "ERROR: One of the processes exited with code $EXIT_CODE"
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
-    exit $EXIT_CODE
-fi
-
-# If we get here, a process exited successfully (unusual for servers)
-# Kill the other and exit
-kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
-exit 0
+# Wait for both processes
+wait
