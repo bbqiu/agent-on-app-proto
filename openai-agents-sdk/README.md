@@ -127,7 +127,7 @@ This will start the agent server and the chat app at http://localhost:8000.
 
    The following files are required to host your own agent with the MLflow `AgentServer`:
 
-   - `agent.py`: This file contains your agent logic. It currently contains a Responses API agent. Please modify this file to create your custom agent.
+   - `agent.py`: This file contains your agent logic. It currently contains an agent built with the OpenAI Agents SDK. Please modify this file to create your custom agent.
    - `start_server.py`: This file initializes and runs the MLflow `AgentServer` with agent_type="ResponsesAgent".
 
    Common changes to make:
@@ -171,7 +171,7 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
 2. **Make sure the value of `MLFLOW_EXPERIMENT_ID` is set in `app.yaml`**
 
-   The `MLFLOW_EXPERIMENT_ID` in `app.yaml` should have been filled in by the `./scripts/setup-mlflow.sh` script. If it is not set, you can manually fill in the value in `app.yaml`. Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
+   The `MLFLOW_EXPERIMENT_ID` in `app.yaml` should have been filled in by the `./scripts/quickstart.sh` script. If it is not set, you can manually fill in the value in `app.yaml`. Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
 
 3. **Sync local files to your workspace**
 

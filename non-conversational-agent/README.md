@@ -22,20 +22,13 @@ After the setup is complete, you can start the agent server at port 8000 locally
 uv run start-server
 ```
 
-## Get started
-
 ## Manual local development loop setup
 
 1. **Set up your local environment**
-   Install the latest versions of `uv` (python package manager), `nvm` (node version manager), and the databricks CLI:
+   Install the latest versions of `uv` (python package manager) and the databricks CLI:
 
    - [`uv` installation docs](https://docs.astral.sh/uv/getting-started/installation/)
-   - [`nvm` installation](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating)
    - [`databricks CLI` installation](https://docs.databricks.com/aws/en/dev-tools/cli/install)
-   - Run the following to use Node 20 LTS:
-     ```bash
-     nvm use 20
-     ```
 
 2. **Set up local authentication to Databricks**
 
@@ -90,15 +83,13 @@ uv run start-server
 
 4. **Testing out your local agent**
 
-   Start up the agent server and chat UI locally:
+   Start up the agent server locally:
 
    ```bash
-   ./scripts/start-app.sh
-
-   # You can also manually start the agent server with additional options:
-   uv run start-server --reload # hot-reload the server on code changes
+   uv run start-server
 
    # Other options for the start-server script:
+   uv run start-server --reload # hot-reload the server on code changes
    uv run start-server --port 8001 # change the port the server listens on
    uv run start-server --workers 4 # run the server with multiple workers
    ```

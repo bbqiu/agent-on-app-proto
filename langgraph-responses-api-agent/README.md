@@ -171,7 +171,7 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
 2. **Make sure the value of `MLFLOW_EXPERIMENT_ID` is set in `app.yaml`**
 
-   The `MLFLOW_EXPERIMENT_ID` in `app.yaml` should have been filled in by the `./scripts/setup-mlflow.sh` script. If it is not set, you can manually fill in the value in `app.yaml`. Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
+   The `MLFLOW_EXPERIMENT_ID` in `app.yaml` should have been filled in by the `./scripts/quickstart.sh` script. If it is not set, you can manually fill in the value in `app.yaml`. Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
 
 3. **Sync local files to your workspace**
 
