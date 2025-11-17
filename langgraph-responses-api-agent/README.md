@@ -4,19 +4,43 @@ This example is a simple agent that follows the [OpenAI Responses API](https://p
 
 Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/flavors/responses-agent-intro/) for more about input and output formats for streaming and non-streaming requests, tracing requirements, and other agent authoring details.
 
-## Get started
+## Quick start
 
-0. **Set up your local environment**
-   Install the latest versions of `uv` (python package manager) and `nvm` (node version manager):
+Run the `./scripts/quickstart.sh` script to quickly set up your local environment and start the agent server. At any step, if there are issues, refer to the manual local development loop setup below.
+
+This script will:
+
+1. Check your UV (python package manager), nvm (node version manager), and databricks CLI installations
+2. Set up databricks auth if you don't already have it setup
+3. Create an MLflow experiment and link it to your app
+4. Start the agent server and the chat app at http://localhost:8000
+
+```bash
+./scripts/quickstart.sh
+```
+
+After the setup is complete, you can start the agent server and the chat app locally with:
+
+```bash
+./scripts/start-app.sh
+```
+
+This will start the agent server and the chat app at http://localhost:8000.
+
+## Manual local development loop setup
+
+1. **Set up your local environment**
+   Install the latest versions of `uv` (python package manager), `nvm` (node version manager), and the databricks CLI:
 
    - [`uv` installation docs](https://docs.astral.sh/uv/getting-started/installation/)
    - [`nvm` installation](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating)
+   - [`databricks CLI` installation](https://docs.databricks.com/aws/en/dev-tools/cli/install)
    - Run the following to use Node 20 LTS:
      ```bash
      nvm use 20
      ```
 
-1. **Set up local authentication to Databricks**
+2. **Set up local authentication to Databricks**
 
    In order to access Databricks resources from your local machine while developing your agent, you need to authenticate with Databricks. Modify `.env.local` with one of the following options:
 
@@ -46,16 +70,9 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
 
    See the [Databricks SDK authentication docs](https://docs.databricks.com/aws/en/dev-tools/sdk-python#authenticate-the-databricks-sdk-for-python-with-your-databricks-account-or-workspace) for more info.
 
-2. **Create and link an MLflow experiment to your app**
+3. **Create and link an MLflow experiment to your app**
 
-   To enable MLflow tracing and version tracking, create an MLflow experiment in Databricks.
-
-   - **Automatic setup (Recommended)**
-     Run the `setup-mlflow.sh` script to automatically create the MLflow experiment and link it to your app. This will create a new experiment in your workspace and update the `MLFLOW_EXPERIMENT_ID` in your `.env.local` (for local testing) and `app.yaml` (for deployment) files.
-
-     ```bash
-     ./setup-mlflow.sh
-     ```
+   To enable MLflow tracing and version tracking, create an MLflow experiment in Databricks. This is automatically done by the `./scripts/quickstart.sh` script.
 
    - **Manual setup**
      Create the MLflow experiment manually via the CLI.
@@ -74,16 +91,19 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
 
    Refer to the [MLflow experiments documentation](https://docs.databricks.com/aws/en/mlflow/experiments#create-experiment-from-the-workspace) for more info.
 
-3. **Testing out your local agent**
+4. **Testing out your local agent**
 
-   Start up the agent server locally:
+   Start up the agent server and chat UI locally:
 
    ```bash
-   uv run start-server --reload
+   ./scripts/start-app.sh
+
+   # You can also manually start the agent server with additional options:
+   uv run start-server --reload # hot-reload the server on code changes
 
    # Other options for the start-server script:
-   uv run start-server --port 8001
-   uv run start-server --workers 4
+   uv run start-server --port 8001 # change the port the server listens on
+   uv run start-server --workers 4 # run the server with multiple workers
    ```
 
    Now you can either query your agent via the built in UI (served by default at http://localhost:8000) or via REST API request:
@@ -101,7 +121,7 @@ Refer to [the ResponsesAgent MLflow docs](https://mlflow.org/docs/latest/genai/f
      -d '{ "input": [{ "role": "user", "content": "hi" }] }'
      ```
 
-4. **Modifying your agent**
+5. **Modifying your agent**
 
    You can check out the [LangGraph documentation](https://docs.langchain.com/oss/python/langgraph/quickstart) for more information on how to edit your own agent.
 
@@ -138,7 +158,7 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    Ensure you have the [Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/tutorial) installed and configured.
 
    ```bash
-   databricks apps create agent-proto
+   databricks apps create agent-prototype
    ```
 
 1. **Set up authentication to Databricks resources**
@@ -149,35 +169,28 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
    **On-behalf-of (OBO) User Authentication**: Use `get_user_workspace_client()` from `agent_server.utils` to authenticate as the requesting user instead of the app service principal. Refer to the [OBO authentication documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth?language=Streamlit#retrieve-user-authorization-credentials) for more info.
 
-2. **Set the value of `MLFLOW_EXPERIMENT_ID` in `app.yaml`**
+2. **Make sure the value of `MLFLOW_EXPERIMENT_ID` is set in `app.yaml`**
 
-   The `MLFLOW_EXPERIMENT_ID` is the ID of the MLflow experiment you created in step 1. Open `app.yaml` for other env vars.
-   Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
+   The `MLFLOW_EXPERIMENT_ID` in `app.yaml` should have been filled in by the `./scripts/setup-mlflow.sh` script. If it is not set, you can manually fill in the value in `app.yaml`. Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
 
-3. **Build the UI**
-
-   ```bash
-   (cd ui && npm run build)
-   ```
-
-4. **Sync local files to your workspace**
+3. **Sync local files to your workspace**
 
    Refer to the [Databricks Apps deploy documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy?language=Databricks+CLI#deploy-the-app) for more info.
 
    ```bash
    DATABRICKS_USERNAME=$(databricks current-user me | jq -r .userName)
-   databricks sync . "/Users/$DATABRICKS_USERNAME/agent-proto"
+   databricks sync . "/Users/$DATABRICKS_USERNAME/agent-prototype
    ```
 
-5. **Deploy your Databricks App**
+4. **Deploy your Databricks App**
 
    Refer to the [Databricks Apps deploy documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy?language=Databricks+CLI#deploy-the-app) for more info.
 
    ```bash
-   databricks apps deploy agent-proto --source-code-path /Workspace/Users/$DATABRICKS_USERNAME/agent-proto
+   databricks apps deploy agent-prototype --source-code-path /Workspace/Users/$DATABRICKS_USERNAME/agent-prototype
    ```
 
-6. **Query your agent hosted on Databricks Apps**
+5. **Query your agent hosted on Databricks Apps**
 
    Databricks Apps are _only_ queryable via OAuth token. You cannot use a PAT to query your agent. Generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
 

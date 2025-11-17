@@ -22,9 +22,9 @@ if [ ! -d "e2e-chatbot-app-next" ]; then
         echo "Cloned using SSH"
     else
         echo "ERROR: Failed to clone repository."
-        echo "Please manually download the folder from:"
+        echo "Please manually download the folder by going to the following link:"
         echo "  https://download-directory.github.io/?url=https://github.com/databricks/app-templates/tree/main/e2e-chatbot-app-next"
-        echo "Then unzip it in this directory and re-run the script."
+        echo "Then unzip it in this directory and re-run `./scripts/start-app.sh`."
         exit 1
     fi
     
