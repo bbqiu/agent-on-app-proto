@@ -19,7 +19,7 @@ This script will:
 ./scripts/quickstart.sh
 ```
 
-After the development is setup, you can start the agent server and the chat app locally with:
+After the setup is complete, you can start the agent server and the chat app locally with:
 
 ```bash
 ./scripts/start-app.sh
@@ -72,14 +72,7 @@ This will start the agent server and the chat app at http://localhost:8000.
 
 3. **Create and link an MLflow experiment to your app**
 
-   To enable MLflow tracing and version tracking, create an MLflow experiment in Databricks.
-
-   - **Automatic setup (Recommended)**
-     Run the `setup-mlflow.sh` script to automatically create the MLflow experiment and link it to your app. This will create a new experiment in your workspace and update the `MLFLOW_EXPERIMENT_ID` in your `.env.local` (for local testing) and `app.yaml` (for deployment) files.
-
-     ```bash
-     ./scripts/setup-mlflow.sh
-     ```
+   To enable MLflow tracing and version tracking, create an MLflow experiment in Databricks. This is automatically done by the `./scripts/quickstart.sh` script.
 
    - **Manual setup**
      Create the MLflow experiment manually via the CLI.

@@ -1,4 +1,4 @@
-command: ["/bin/bash", "start-app.sh"]
+command: ["/bin/bash", "./scripts/start-app.sh"]
 # databricks apps listen by default on port 8000
 
 env:
@@ -8,5 +8,3 @@ env:
     value: "databricks-uc"
   - name: API_PROXY
     value: "http://localhost:8000/invocations"
-  - name: MLFLOW_EXPERIMENT_ID
-    value: "" # TODO: fill in with your experiment ID

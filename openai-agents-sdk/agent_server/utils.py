@@ -1,8 +1,11 @@
-from typing import Optional
+from typing import Any, AsyncGenerator, AsyncIterator, Optional
+from uuid import uuid4
 
+from agents.result import StreamEvent
 from databricks.sdk import WorkspaceClient
 from httpx import AsyncClient, Auth, Request
 from mlflow.genai.agent_server import get_request_headers
+from mlflow.types.responses import ResponsesAgentStreamEvent
 from openai import AsyncOpenAI
 
 
@@ -40,3 +43,25 @@ def get_async_openai_client(workspace_client: WorkspaceClient) -> AsyncOpenAI:
 def get_user_workspace_client() -> WorkspaceClient:
     token = get_request_headers().get("x-forwarded-access-token")
     return WorkspaceClient(token=token, auth_type="pat")
+
+
+async def process_agent_stream_events(
+    async_stream: AsyncIterator[StreamEvent],
+) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
+    curr_item_id = str(uuid4())
+    async for event in async_stream:
+        if event.type == "raw_response_event":
+            event_data = event.data
+            if event_data.type == "response.output_item.added":
+                curr_item_id = str(uuid4())
+                event_data.item.id = curr_item_id
+            elif event_data.item is not None and event_data.item.id is not None:
+                event_data.item.id = curr_item_id
+            elif event_data.item_id is not None:
+                event_data.item_id = curr_item_id
+            yield event_data.model_dump()
+        elif event.type == "run_item_stream_event" and event.item.type == "tool_call_output_item":
+            yield ResponsesAgentStreamEvent(
+                type="response.output_item.done",
+                item=event.item.to_input_item(),
+            )

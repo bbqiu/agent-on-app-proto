@@ -12,7 +12,12 @@ from mlflow.types.responses import (
     ResponsesAgentStreamEvent,
 )
 
-from agent_server.utils import get_async_openai_client, get_databricks_host_from_env
+from agent_server.utils import (
+    get_async_openai_client,
+    get_databricks_host_from_env,
+    get_user_workspace_client,
+    process_agent_stream_events,
+)
 
 sp_workspace_client = WorkspaceClient()
 # NOTE: this will work for all databricks models OTHER than GPT-OSS, which uses a slightly different API
@@ -45,7 +50,7 @@ def create_coding_agent(mcp_server: MCPServerStdio) -> Agent:
 
 @invoke()
 async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
-    # user_workspace_client = get_obo_workspace_client()
+    # user_workspace_client = get_user_workspace_client()
     async with await init_mcp_server() as mcp_server:
         agent = create_coding_agent(mcp_server)
         messages = [i.model_dump() for i in request.input]
@@ -55,20 +60,11 @@ async def invoke(request: ResponsesAgentRequest) -> ResponsesAgentResponse:
 
 @stream()
 async def stream(request: dict) -> AsyncGenerator[ResponsesAgentStreamEvent, None]:
-    # user_workspace_client = get_obo_workspace_client()
+    # user_workspace_client = get_user_workspace_client()
     async with await init_mcp_server() as mcp_server:
         agent = create_coding_agent(mcp_server)
         messages = [i.model_dump() for i in request.input]
         result = Runner.run_streamed(agent, input=messages)
 
-        # TODO: fix the IDs here somehow
-        async for event in result.stream_events():
-            if event.type == "raw_response_event":
-                yield event.data.model_dump()
-            elif (
-                event.type == "run_item_stream_event" and event.item.type == "tool_call_output_item"
-            ):
-                yield ResponsesAgentStreamEvent(
-                    type="response.output_item.done",
-                    item=event.item.to_input_item(),
-                )
+        async for event in process_agent_stream_events(result.stream_events()):
+            yield event
