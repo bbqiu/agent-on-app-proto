@@ -48,7 +48,3 @@ async def proxy_middleware(request: Request, call_next):
 
 def main():
     agent_server.run(app_import_string="agent_server.start_server:app")
-
-
-if __name__ == "__main__":
-    main()

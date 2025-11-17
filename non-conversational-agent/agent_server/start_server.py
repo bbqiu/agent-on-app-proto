@@ -11,14 +11,9 @@ import agent_server.agent  # noqa: E402
 agent_server = AgentServer()
 # Define the app as a module level variable to enable multiple workers
 app = agent_server.app  # noqa: F841
-
 setup_mlflow_git_based_version_tracking()
 
 
 def main():
     # to support multiple workers, import the app defined above as a string
     agent_server.run(app_import_string="agent_server.start_server:app")
-
-
-if __name__ == "__main__":
-    main()
