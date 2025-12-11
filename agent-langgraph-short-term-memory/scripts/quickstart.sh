@@ -294,42 +294,52 @@ echo
 # Section 4: MLflow Experiment Setup
 # ===================================================================
 
+# Check if MLFLOW_EXPERIMENT_ID already exists in app.yaml or .env.local
+EXISTING_EXPERIMENT_ID=""
 
-# Get current Databricks username
-echo "Getting Databricks username..."
-DATABRICKS_USERNAME=$(databricks -p $PROFILE_NAME current-user me | jq -r .userName)
-echo "Username: $DATABRICKS_USERNAME"
-echo
-
-# Create MLflow experiment and capture the experiment ID
-echo "Creating MLflow experiment..."
-EXPERIMENT_NAME="/Users/$DATABRICKS_USERNAME/agents-on-apps"
-
-# Try to create the experiment with the default name first
-if EXPERIMENT_RESPONSE=$(databricks -p $PROFILE_NAME experiments create-experiment $EXPERIMENT_NAME 2>/dev/null); then
-    EXPERIMENT_ID=$(echo $EXPERIMENT_RESPONSE | jq -r .experiment_id)
-    echo "Created experiment '$EXPERIMENT_NAME' with ID: $EXPERIMENT_ID"
-else
-    echo "Experiment name already exists, creating with random suffix..."
-    RANDOM_SUFFIX=$(openssl rand -hex 4)
-    EXPERIMENT_NAME="/Users/$DATABRICKS_USERNAME/agents-on-apps-$RANDOM_SUFFIX"
-    EXPERIMENT_RESPONSE=$(databricks -p $PROFILE_NAME experiments create-experiment $EXPERIMENT_NAME)
-    EXPERIMENT_ID=$(echo $EXPERIMENT_RESPONSE | jq -r .experiment_id)
-    echo "Created experiment '$EXPERIMENT_NAME' with ID: $EXPERIMENT_ID"
-fi
-echo
-
-# Update .env.local with the experiment ID
-echo "Updating .env.local with experiment ID..."
-sed -i '' "s/MLFLOW_EXPERIMENT_ID=.*/MLFLOW_EXPERIMENT_ID=$EXPERIMENT_ID/" .env.local
-echo
-
-# Update app.yaml with the experiment ID only if MLFLOW_EXPERIMENT_ID doesn't exist
 if grep -q "name: MLFLOW_EXPERIMENT_ID" app.yaml; then
-    echo "MLFLOW_EXPERIMENT_ID already exists in app.yaml, skipping update..."
+    EXISTING_EXPERIMENT_ID=$(grep -A1 "name: MLFLOW_EXPERIMENT_ID" app.yaml | grep "value:" | sed 's/.*value: *"\?\([^"]*\)"\?/\1/')
+elif grep -q "MLFLOW_EXPERIMENT_ID=" .env.local; then
+    EXISTING_EXPERIMENT_ID=$(grep "MLFLOW_EXPERIMENT_ID=" .env.local | sed 's/MLFLOW_EXPERIMENT_ID=//')
+fi
+
+if [ -n "$EXISTING_EXPERIMENT_ID" ]; then
+    echo "MLFLOW_EXPERIMENT_ID already exists, skipping experiment creation..."
+    EXPERIMENT_ID="$EXISTING_EXPERIMENT_ID"
+    EXPERIMENT_NAME="(existing experiment)"
+    echo "Using existing experiment ID: $EXPERIMENT_ID"
 else
+    # Get current Databricks username
+    echo "Getting Databricks username..."
+    DATABRICKS_USERNAME=$(databricks -p $PROFILE_NAME current-user me | jq -r .userName)
+    echo "Username: $DATABRICKS_USERNAME"
+    echo
+
+    # Create MLflow experiment and capture the experiment ID
+    echo "Creating MLflow experiment..."
+    EXPERIMENT_NAME="/Users/$DATABRICKS_USERNAME/agents-on-apps"
+
+    # Try to create the experiment with the default name first
+    if EXPERIMENT_RESPONSE=$(databricks -p $PROFILE_NAME experiments create-experiment $EXPERIMENT_NAME 2>/dev/null); then
+        EXPERIMENT_ID=$(echo $EXPERIMENT_RESPONSE | jq -r .experiment_id)
+        echo "Created experiment '$EXPERIMENT_NAME' with ID: $EXPERIMENT_ID"
+    else
+        echo "Experiment name already exists, creating with random suffix..."
+        RANDOM_SUFFIX=$(openssl rand -hex 4)
+        EXPERIMENT_NAME="/Users/$DATABRICKS_USERNAME/agents-on-apps-$RANDOM_SUFFIX"
+        EXPERIMENT_RESPONSE=$(databricks -p $PROFILE_NAME experiments create-experiment $EXPERIMENT_NAME)
+        EXPERIMENT_ID=$(echo $EXPERIMENT_RESPONSE | jq -r .experiment_id)
+        echo "Created experiment '$EXPERIMENT_NAME' with ID: $EXPERIMENT_ID"
+    fi
+    echo
+
+    # Update .env.local with the experiment ID
+    echo "Updating .env.local with experiment ID..."
+    sed -i '' "s/MLFLOW_EXPERIMENT_ID=.*/MLFLOW_EXPERIMENT_ID=$EXPERIMENT_ID/" .env.local
+    echo
+
+    # Add MLFLOW_EXPERIMENT_ID to app.yaml
     echo "Adding MLFLOW_EXPERIMENT_ID to app.yaml..."
-    # Add the two lines to the env section
     sed -i '' "/^env:/a\\
   - name: MLFLOW_EXPERIMENT_ID\\
     value: \"$EXPERIMENT_ID\"
@@ -342,27 +352,29 @@ echo
 # Section 5: Lakebase Instance Setup
 # ===================================================================
 
-echo "Setting up Lakebase instance..."
-echo "Please enter your Lakebase instance name:"
-read -r LAKEBASE_INSTANCE_NAME
-
-if [ -z "$LAKEBASE_INSTANCE_NAME" ]; then
-    echo "Error: Lakebase instance name is required"
-    exit 1
-fi
-
-# Update .env.local with the Lakebase instance name
-if grep -q "LAKEBASE_INSTANCE_NAME=" .env.local; then
-    sed -i '' "s/LAKEBASE_INSTANCE_NAME=.*/LAKEBASE_INSTANCE_NAME=$LAKEBASE_INSTANCE_NAME/" .env.local
-else
-    echo "LAKEBASE_INSTANCE_NAME=$LAKEBASE_INSTANCE_NAME" >> .env.local
-fi
-echo "✓ Lakebase instance name saved to .env.local"
-
-# Update app.yaml with the Lakebase instance name only if it doesn't exist
+# Check if LAKEBASE_INSTANCE_NAME already exists in app.yaml
 if grep -q "name: LAKEBASE_INSTANCE_NAME" app.yaml; then
-    echo "LAKEBASE_INSTANCE_NAME already exists in app.yaml, skipping update..."
+    echo "LAKEBASE_INSTANCE_NAME already exists in app.yaml, skipping Lakebase setup..."
+    # Extract the existing value from app.yaml for display in summary
+    LAKEBASE_INSTANCE_NAME=$(grep -A1 "name: LAKEBASE_INSTANCE_NAME" app.yaml | grep "value:" | sed 's/.*value: *"\?\([^"]*\)"\?/\1/')
 else
+    echo "Setting up Lakebase instance..."
+    echo "Please enter your Lakebase instance name:"
+    read -r LAKEBASE_INSTANCE_NAME
+
+    if [ -z "$LAKEBASE_INSTANCE_NAME" ]; then
+        echo "Error: Lakebase instance name is required"
+        exit 1
+    fi
+
+    # Update .env.local with the Lakebase instance name
+    if grep -q "LAKEBASE_INSTANCE_NAME=" .env.local; then
+        sed -i '' "s/LAKEBASE_INSTANCE_NAME=.*/LAKEBASE_INSTANCE_NAME=$LAKEBASE_INSTANCE_NAME/" .env.local
+    else
+        echo "LAKEBASE_INSTANCE_NAME=$LAKEBASE_INSTANCE_NAME" >> .env.local
+    fi
+    echo "✓ Lakebase instance name saved to .env.local"
+
     echo "Adding LAKEBASE_INSTANCE_NAME to app.yaml..."
     # Add the two lines to the env section
     sed -i '' "/^env:/a\\
