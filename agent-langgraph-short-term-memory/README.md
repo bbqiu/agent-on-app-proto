@@ -250,37 +250,35 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    - Go to **App resources** → **Add resource**
    - Add your Lakebase instance that you are using for short-term memory store
 
-   Then, grant the necessary permissions on your Lakebase instance for your app's service principal. Run the following SQL commands on your Lakebase instance (replace `$APP_SP_UUID` with your app's service principal UUID):
+   Then, grant the necessary permissions on your Lakebase instance for your app's service principal. Run the following SQL commands on your Lakebase instance (replace `app-sp-id` with your app's service principal UUID):
 
    ```sql
-   -- AI chatbot usage requirements
-   GRANT USAGE ON SCHEMA ai_chatbot
-   TO "$APP_SP_UUID";
+   DO $$
+   DECLARE
+      app_sp text := 'app-sp-uuid';  -- TODO: Replace with your App's Service Principal ID here
+   BEGIN
+      -------------------------------------------------------------------
+      -- Drizzle schema: migration metadata tables
+      -------------------------------------------------------------------
+      EXECUTE format('GRANT USAGE, CREATE ON SCHEMA drizzle TO %I;', app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA drizzle TO %I;', app_sp);
 
-   GRANT SELECT, INSERT, UPDATE
-   ON ALL TABLES IN SCHEMA ai_chatbot
-   TO "$APP_SP_UUID";
+      -------------------------------------------------------------------
+      -- App schema: business tables (Chat, Message, etc.)
+      -------------------------------------------------------------------
+      EXECUTE format('GRANT USAGE, CREATE ON SCHEMA ai_chatbot TO %I;', app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA ai_chatbot TO %I;', app_sp);
 
-   -- Required so we can access tables in public schema
-   GRANT USAGE ON SCHEMA public
-   TO "$APP_SP_UUID";
+      -------------------------------------------------------------------
+      -- Public schema for checkpoint tables
+      -------------------------------------------------------------------
+      EXECUTE format('GRANT USAGE, CREATE ON SCHEMA public TO %I;', app_sp);
 
-   -- Required so we can read/write checkpoint tables
-   GRANT SELECT, INSERT, UPDATE
-   ON TABLE public.checkpoint_migrations
-   TO "$APP_SP_UUID";
-
-   GRANT SELECT, INSERT, UPDATE
-   ON TABLE public.checkpoint_writes
-   TO "$APP_SP_UUID";
-
-   GRANT SELECT, INSERT, UPDATE
-   ON TABLE public.checkpoints
-   TO "$APP_SP_UUID";
-
-   GRANT SELECT, INSERT, UPDATE
-   ON TABLE public.checkpoint_blobs
-   TO "$APP_SP_UUID";
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.checkpoint_migrations TO %I;', app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.checkpoint_writes TO %I;',       app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.checkpoints TO %I;',             app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.checkpoint_blobs TO %I;',        app_sp);
+   END $$;
    ```
 
 6. **Query your agent hosted on Databricks Apps**
