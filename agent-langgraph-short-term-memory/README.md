@@ -140,6 +140,15 @@ This will start the agent server and the chat app at http://localhost:8000.
      -H "Content-Type: application/json" \
      -d '{ "input": [{ "role": "user", "content": "hi" }] }'
      ```
+   - Example request with thread ID (for stateful agent):
+     ```bash
+     curl -X POST http://localhost:8000/invocations \
+     -H "Content-Type: application/json" \
+     -d '{
+         "input": [{"role": "user", "content": "What did we discuss?"}],
+         "custom_inputs": {"thread_id": "<thread-id>"}
+     }'
+     ```
 
 ## Modifying your agent
 
@@ -231,7 +240,50 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    databricks apps deploy agent-langgraph --source-code-path /Workspace/Users/$DATABRICKS_USERNAME/agent-langgraph
    ```
 
-5. **Query your agent hosted on Databricks Apps**
+5. **Grant Lakebase permissions to your App's Service Principal**
+
+   Before querying your deployed agent, you need to ensure your app has access to the necessary Lakebase tables for short-term memory.
+
+   First, add your Lakebase instance as a resource to your app:
+   - Go to the Databricks UI
+   - Navigate to your app and click **Edit**
+   - Go to **App resources** → **Add resource**
+   - Add your Lakebase instance that you are using for short-term memory store
+
+   Then, grant the necessary permissions on your Lakebase instance for your app's service principal. Run the following SQL commands on your Lakebase instance (replace `$APP_SP_UUID` with your app's service principal UUID):
+
+   ```sql
+   -- AI chatbot usage requirements
+   GRANT USAGE ON SCHEMA ai_chatbot
+   TO "$APP_SP_UUID";
+
+   GRANT SELECT, INSERT, UPDATE
+   ON ALL TABLES IN SCHEMA ai_chatbot
+   TO "$APP_SP_UUID";
+
+   -- Required so we can access tables in public schema
+   GRANT USAGE ON SCHEMA public
+   TO "$APP_SP_UUID";
+
+   -- Required so we can read/write checkpoint tables
+   GRANT SELECT, INSERT, UPDATE
+   ON TABLE public.checkpoint_migrations
+   TO "$APP_SP_UUID";
+
+   GRANT SELECT, INSERT, UPDATE
+   ON TABLE public.checkpoint_writes
+   TO "$APP_SP_UUID";
+
+   GRANT SELECT, INSERT, UPDATE
+   ON TABLE public.checkpoints
+   TO "$APP_SP_UUID";
+
+   GRANT SELECT, INSERT, UPDATE
+   ON TABLE public.checkpoint_blobs
+   TO "$APP_SP_UUID";
+   ```
+
+6. **Query your agent hosted on Databricks Apps**
 
    Databricks Apps are _only_ queryable via OAuth token. You cannot use a PAT to query your agent. Generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
 
@@ -258,6 +310,18 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
         -H "Authorization: Bearer <oauth token>" \
         -H "Content-Type: application/json" \
         -d '{ "input": [{ "role": "user", "content": "hi" }] }'
+     ```
+
+   - Example request with thread ID (for stateful agent):
+
+     ```bash
+     curl -X POST <app-url.databricksapps.com>/invocations \
+        -H "Authorization: Bearer <oauth token>" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "input": [{"role": "user", "content": "What did we discuss?"}],
+            "custom_inputs": {"thread_id": "<thread-id>"}
+        }'
      ```
 
 For future updates to the agent, sync and redeploy your agent.
