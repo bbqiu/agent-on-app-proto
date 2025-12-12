@@ -232,17 +232,9 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    databricks sync . "/Users/$DATABRICKS_USERNAME/agent-langgraph"
    ```
 
-4. **Deploy your Databricks App**
+4. **Grant Lakebase permissions to your App's Service Principal**
 
-   See the [Databricks Apps deploy documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy?language=Databricks+CLI#deploy-the-app).
-
-   ```bash
-   databricks apps deploy agent-langgraph --source-code-path /Workspace/Users/$DATABRICKS_USERNAME/agent-langgraph
-   ```
-
-5. **Grant Lakebase permissions to your App's Service Principal**
-
-   Before querying your deployed agent, you need to ensure your app has access to the necessary Lakebase tables for short-term memory.
+   Before deploying/querying your agent, you need to ensure your app has access to the necessary Lakebase tables for short-term memory.
 
    First, add your Lakebase instance as a resource to your app:
    - Go to the Databricks UI
@@ -279,6 +271,14 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
       EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.checkpoints TO %I;',             app_sp);
       EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.checkpoint_blobs TO %I;',        app_sp);
    END $$;
+   ```
+
+5. **Deploy your Databricks App**
+
+   See the [Databricks Apps deploy documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy?language=Databricks+CLI#deploy-the-app).
+
+   ```bash
+   databricks apps deploy agent-langgraph --source-code-path /Workspace/Users/$DATABRICKS_USERNAME/agent-langgraph
    ```
 
 6. **Query your agent hosted on Databricks Apps**
