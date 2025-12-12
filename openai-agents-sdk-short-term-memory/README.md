@@ -31,6 +31,48 @@ This will start the agent server and the chat app at http://localhost:8000.
 
 **Next steps**: see [modifying your agent](#modifying-your-agent) to customize and iterate on the agent code.
 
+## Short-Term Memory
+
+This agent supports short-term memory, allowing conversation history to persist across multiple agent runs using Databricks Lakebase as a store.
+
+### Setup Database
+
+1. **Configure your Lakebase instance name** in `app.yaml` and/or `.env.local`, The `quickstart.sh` script should populate this for you as well.
+
+   ```bash
+   # Just set the instance name - credentials are automatically resolved
+   LAKEBASE_INSTANCE_NAME=your-lakebase-instance
+   ```
+
+### Using Short-Term Memory
+
+**First message (new conversation):**
+```bash
+curl -X POST http://localhost:8000/invocations \
+    -H "Content-Type: application/json" \
+    -d '{"input": [{"role": "user", "content": "Hello I live in SF!"}]}'
+```
+
+Response includes a `thread_id` in `custom_outputs`:
+```json
+{
+  "output": [...],
+  "custom_outputs": {"thread_id": "16da732c-0bed-4525-a194-6c9759bcdf27"}
+}
+```
+
+**Follow-up message (continue conversation):**
+```bash
+curl -X POST http://localhost:8000/invocations \
+    -H "Content-Type: application/json" \
+    -d '{
+        "input": [{"role": "user", "content": "What did we discuss?"}],
+        "custom_inputs": {"thread_id": "16da732c-0bed-4525-a194-6c9759bcdf27"}
+    }'
+```
+
+The agent will recall the previous conversation context and respond accordingly.
+
 ## Manual local development loop setup
 
 1. **Set up your local environment**
@@ -185,7 +227,16 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
    The `MLFLOW_EXPERIMENT_ID` in `app.yaml` should have been filled in by the `./scripts/quickstart.sh` script. If it is not set, you can manually fill in the value in `app.yaml`. Refer to the [Databricks Apps environment variable documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables) for more info.
 
-3. **Sync local files to your workspace**
+3. **Make sure the value of `LAKEBASE_INSTANCE_NAME` is set in `app.yaml`**
+
+   Set the `LAKEBASE_INSTANCE_NAME` environment variable to your Lakebase instance name for short-term memory support. This enables conversation history to persist across agent runs. The agent will automatically resolve the database host and generate rotating credentials using the WorkspaceClient.
+
+   ```yaml
+   - name: LAKEBASE_INSTANCE_NAME
+     value: "your-lakebase-instance"  # Replace with your Lakebase instance name
+   ```
+
+4. **Sync local files to your workspace**
 
    See the [Databricks Apps deploy documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy?language=Databricks+CLI#deploy-the-app).
 
@@ -194,7 +245,53 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    databricks sync . "/Users/$DATABRICKS_USERNAME/agent-openai-agents-sdk"
    ```
 
-4. **Deploy your Databricks App**
+5. **Grant Lakebase permissions to your App's Service Principal**
+
+   Before querying your deployed agent, you need to ensure your app has access to the necessary Lakebase tables for memory.
+
+   First, add your Lakebase instance as a resource to your app:
+
+   - Go to the Databricks UI
+   - Navigate to your app and click **Edit**
+   - Go to **App resources** → **Add resource**
+   - Add your Lakebase instance that you are using for memory store
+
+   Then, grant the necessary permissions on your Lakebase instance for your app's service principal. Run the following SQL commands on your Lakebase instance (replace `app-sp-uuid` with your app's service principal UUID):
+
+   ```sql
+   DO $$
+   DECLARE
+      app_sp text := 'app-sp-uuid';  -- TODO: Replace with your App's Service Principal ID here
+   BEGIN
+      -------------------------------------------------------------------
+      -- For e2e agent frontend: Drizzle schema: migration metadata tables
+      -------------------------------------------------------------------
+      EXECUTE format('GRANT USAGE, CREATE ON SCHEMA drizzle TO %I;', app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA drizzle TO %I;', app_sp);
+
+      -------------------------------------------------------------------
+      -- For e2e agent frontend: App schema: business tables (Chat, Message, etc.)
+      -------------------------------------------------------------------
+      EXECUTE format('GRANT USAGE, CREATE ON SCHEMA ai_chatbot TO %I;', app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA ai_chatbot TO %I;', app_sp);
+
+      -------------------------------------------------------------------
+      -- For agent memory/backend: Public schema for short-term memory tables
+      -------------------------------------------------------------------
+      EXECUTE format('GRANT USAGE, CREATE ON SCHEMA public TO %I;', app_sp);
+
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.agent_sessions TO %I;', app_sp);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.agent_messages TO %I;',       app_sp);
+      -- For all sequences in public (short-term memory tables)
+      EXECUTE format(
+         'GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO %I;',
+         app_sp
+      );
+
+   END $$;
+   ```
+
+6. **Deploy your Databricks App**
 
    See the [Databricks Apps deploy documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy?language=Databricks+CLI#deploy-the-app).
 
@@ -202,7 +299,7 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
    databricks apps deploy agent-openai-agents-sdk --source-code-path /Workspace/Users/$DATABRICKS_USERNAME/agent-openai-agents-sdk
    ```
 
-5. **Query your agent hosted on Databricks Apps**
+7. **Query your agent hosted on Databricks Apps**
 
    Databricks Apps are _only_ queryable via OAuth token. You cannot use a PAT to query your agent. Generate an [OAuth token with your credentials using the Databricks CLI](https://docs.databricks.com/aws/en/dev-tools/cli/authentication#u2m-auth):
 
