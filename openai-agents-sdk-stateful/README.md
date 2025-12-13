@@ -31,20 +31,27 @@ This will start the agent server and the chat app at http://localhost:8000.
 
 **Next steps**: see [modifying your agent](#modifying-your-agent) to customize and iterate on the agent code.
 
-## Short-Term Memory
+## Statefulness (Session-Based Memory)
 
-This agent supports short-term memory, allowing conversation history to persist across multiple agent runs using Databricks Lakebase as a store.
+This agent supports stateful conversations, allowing conversation history to persist across multiple agent runs using Databricks Lakebase as a store.
+
+### Session IDs
+
+The `session_id` can be any meaningful identifier to organize conversations:
+- **User-based**: `"user_12345"` - All conversations for a specific user
+- **Thread-based**: `"thread_abc123"` - A specific conversation thread
+- **Context-based**: `"support_ticket_456"` - Tied to a business context
 
 ### Setup Database
 
-1. **Configure your Lakebase instance name** in `app.yaml` and/or `.env.local`, The `quickstart.sh` script should populate this for you as well.
+1. **Configure your Lakebase instance name** in `app.yaml` and/or `.env.local`. The `quickstart.sh` script should populate this for you as well.
 
    ```bash
    # Just set the instance name - credentials are automatically resolved
    LAKEBASE_INSTANCE_NAME=your-lakebase-instance
    ```
 
-### Using Short-Term Memory
+### Using Stateful Sessions
 
 **First message (new conversation):**
 ```bash
@@ -53,11 +60,11 @@ curl -X POST http://localhost:8000/invocations \
     -d '{"input": [{"role": "user", "content": "Hello I live in SF!"}]}'
 ```
 
-Response includes a `thread_id` in `custom_outputs`:
+Response includes a `session_id` in `custom_outputs`:
 ```json
 {
   "output": [...],
-  "custom_outputs": {"thread_id": "16da732c-0bed-4525-a194-6c9759bcdf27"}
+  "custom_outputs": {"session_id": "session-uuid"}
 }
 ```
 
@@ -67,7 +74,17 @@ curl -X POST http://localhost:8000/invocations \
     -H "Content-Type: application/json" \
     -d '{
         "input": [{"role": "user", "content": "What did we discuss?"}],
-        "custom_inputs": {"thread_id": "16da732c-0bed-4525-a194-6c9759bcdf27"}
+        "custom_inputs": {"session_id": "session-uuid"}
+    }'
+```
+
+**Using a custom session_id (e.g., user-based):**
+```bash
+curl -X POST http://localhost:8000/invocations \
+    -H "Content-Type: application/json" \
+    -d '{
+        "input": [{"role": "user", "content": "Hello!"}],
+        "custom_inputs": {"session_id": "user_12345"}
     }'
 ```
 
@@ -229,7 +246,7 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
 
 3. **Make sure the value of `LAKEBASE_INSTANCE_NAME` is set in `app.yaml`**
 
-   Set the `LAKEBASE_INSTANCE_NAME` environment variable to your Lakebase instance name for short-term memory support. This enables conversation history to persist across agent runs. The agent will automatically resolve the database host and generate rotating credentials using the WorkspaceClient.
+   Set the `LAKEBASE_INSTANCE_NAME` environment variable to your Lakebase instance name for stateful session support. This enables conversation history to persist across agent runs. The agent will automatically resolve the database host and generate rotating credentials using the WorkspaceClient.
 
    ```yaml
    - name: LAKEBASE_INSTANCE_NAME
@@ -276,13 +293,13 @@ After it completes, open the MLflow UI link for your experiment to inspect resul
       EXECUTE format('GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA ai_chatbot TO %I;', app_sp);
 
       -------------------------------------------------------------------
-      -- For agent memory/backend: Public schema for short-term memory tables
+      -- For agent memory/backend: Public schema for session tables
       -------------------------------------------------------------------
       EXECUTE format('GRANT USAGE, CREATE ON SCHEMA public TO %I;', app_sp);
 
       EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.agent_sessions TO %I;', app_sp);
       EXECUTE format('GRANT SELECT, INSERT, UPDATE ON TABLE public.agent_messages TO %I;',       app_sp);
-      -- For all sequences in public (short-term memory tables)
+      -- For all sequences in public (session tables)
       EXECUTE format(
          'GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO %I;',
          app_sp
