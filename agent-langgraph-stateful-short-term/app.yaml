@@ -2,6 +2,10 @@ command: ["/bin/bash", "./scripts/start-app.sh"]
 # databricks apps listen by default on port 8000
 
 env:
+  - name: LAKEBASE_INSTANCE_NAME
+    value: "lakebase"
+  - name: MLFLOW_EXPERIMENT_ID
+    value: "3087627603507912"
   - name: MLFLOW_TRACKING_URI
     value: "databricks"
   - name: MLFLOW_REGISTRY_URI
@@ -10,3 +14,7 @@ env:
     value: "http://localhost:8000/invocations"
   - name: CHAT_APP_PORT
     value: "3000"
+  - name: CHAT_PROXY_TIMEOUT_SECONDS
+    value: "300"
+  - name: MLFLOW_EXPERIMENT_ID
+    valueFrom: "experiment"
