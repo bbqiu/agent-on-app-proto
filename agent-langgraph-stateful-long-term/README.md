@@ -124,6 +124,16 @@ This will start the agent server and the chat app at http://localhost:8000.
      -H "Content-Type: application/json" \
      -d '{ "input": [{ "role": "user", "content": "hi" }] }'
      ```
+   - Example request passing in user id context (for long term agent example):
+   ```bash
+     curl -X POST http://localhost:8000/invocations \
+      -H "Content-Type: application/json" \
+      -d '{
+         "input": [{"role": "user", "content": "What is my favorite color?"}],
+         "context": {"user_id": "test@example.com"}
+      }'
+     ```
+   
 
 ## Modifying your agent
 
