@@ -10,12 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.12",
     "uvicorn>=0.34.2",
-    # Install both databricks_mcp and databricks-langchain from the dev branch
-    # to ensure workspace_client attribute is available in DatabricksOAuthClientProvider
-    # or else we get if isinstance(auth, DatabricksOAuthClientProvider) and auth.workspace_client is not None:
-    # AttributeError: 'DatabricksOAuthClientProvider' object has no attribute 'workspace_client'
-    "databricks_mcp @ git+https://github.com/databricks/databricks-ai-bridge@async-checkpointsaver#subdirectory=databricks_mcp",
-    "databricks-langchain[memory] @ git+https://github.com/databricks/databricks-ai-bridge@async-checkpointsaver#subdirectory=integrations/langchain",
+    "databricks-langchain[memory]",
     "mlflow>=3.8.0rc0",
     "langgraph>=1.0.1",
     "langchain-mcp-adapters>=0.1.11",
