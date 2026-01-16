@@ -208,4 +208,3 @@ sketch
 **/.databricks
 **/.claude
 **/.env.local
-/agent-langgraph-stateful-short-term/e2e-chatbot-app-next
